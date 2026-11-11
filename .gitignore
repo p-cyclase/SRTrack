@@ -1,0 +1,25 @@
+# Build products
+*.aux2
+*.exe
+*.obj
+*.res
+*.lib
+*.exp
+*.pdb
+*.ilk
+*.idb
+*.log
+
+# Local settings and editor files
+.vs/
+.vscode/
+build/
+out/
+*.user
+*.suo
+
+# User project data and generated subtitles
+*.aup2
+*.srt
+*.wav
+*.mp4
