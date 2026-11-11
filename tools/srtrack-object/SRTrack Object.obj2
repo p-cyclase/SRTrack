@@ -1,5 +1,5 @@
 --label:SRTrack
---information:SRTrack Object 0.2 by p_cyclase
+--information:SRTrack Object 0.3 by p_cyclase
 --file@file:SRT ファイル
 --value@start_ms:SRT 再生開始（ミリ秒）,0
 --value@speed:SRT 再生速度,1
@@ -54,16 +54,15 @@ local function parse_srt(bytes)
 end
 
 local function read_srt_bytes(path)
-    if not io or not io.open or path == "" then
-        return nil
+    local ok, module = pcall(function() return obj.module("SRTrackPreview") end)
+    if not ok or not module or not module.read_utf8_file then
+        return nil, "SRTrackPreview.mod2 を読み込めません"
     end
-    local handle = io.open(path, "rb")
-    if not handle then
-        return nil
+    local read_ok, bytes = pcall(module.read_utf8_file, path)
+    if not read_ok then
+        return nil, bytes
     end
-    local bytes = handle:read("*a")
-    handle:close()
-    return bytes
+    return bytes, nil
 end
 
 local function preview_text(captions, source_time)
@@ -79,27 +78,50 @@ local function preview_text(captions, source_time)
     return table.concat(active, "\n")
 end
 
-local function clear_preview()
-    obj.load("text", "")
+local function draw_preview(text, color, outline)
+    obj.setfont("MS UI Gothic", 48, 3, color, outline, true)
+    obj.load("text", text, 0, 0, 4)
+    obj.draw()
 end
 
-if not preview or obj.getinfo("saving") or not file or file == "" or not speed or speed <= 0 then
+local function clear_preview()
+    obj.load("text", "")
+    obj.draw()
+end
+
+if obj.getinfo("saving") or not preview then
     clear_preview()
+elseif not file or file == "" then
+    draw_preview("[SRTrack] SRT ファイルが指定されていません", 0xff8080, 0x400000)
+elseif not speed or speed <= 0 then
+    draw_preview("[SRTrack] SRT 再生速度は正の値にしてください", 0xff8080, 0x400000)
 else
     local cache_prefix = "__srtrack_preview_" .. obj.id
     local path_key = cache_prefix .. "_path"
     local bytes_key = cache_prefix .. "_bytes"
+    local error_key = cache_prefix .. "_error"
     if global[path_key] ~= file then
         global[path_key] = file
-        global[bytes_key] = read_srt_bytes(file) or ""
+        local bytes, message = read_srt_bytes(file)
+        global[bytes_key] = bytes or ""
+        global[error_key] = message or ""
     end
 
-    local captions = parse_srt(global[bytes_key] or "")
-    local text = preview_text(captions, start_ms + speed * obj.time * 1000)
-    if text == "" then
-        clear_preview()
+    local message = global[error_key] or ""
+    local bytes = global[bytes_key] or ""
+    if message ~= "" then
+        draw_preview("[SRTrack] " .. message, 0xff8080, 0x400000)
     else
-        obj.setfont("MS UI Gothic", 48, 3, 0xffffff, 0x000000, true)
-        obj.load("text", text, 0, 0, 4)
+        local captions = parse_srt(bytes)
+        if #captions == 0 and bytes ~= "" then
+            draw_preview("[SRTrack] 有効な SRT 字幕が見つかりません", 0xff8080, 0x400000)
+        else
+            local text = preview_text(captions, start_ms + speed * obj.time * 1000)
+            if text == "" then
+                clear_preview()
+            else
+                draw_preview(text, 0xffffff, 0x000000)
+            end
+        end
     end
 end

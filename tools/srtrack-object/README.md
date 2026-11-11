@@ -4,7 +4,12 @@ SRTrack Object は、レンダリング済み動画に対応する SRT の参照
 
 ## インストール
 
-`SRTrack Object.obj2` を AviUtl2 の `Script` フォルダ、またはその直下のサブフォルダへコピーして AviUtl2 を再起動します。通常の配置先は `C:\ProgramData\aviutl2\Script\SRTrack\SRTrack Object.obj2` です。
+次の2ファイルをコピーして AviUtl2 を再起動します。
+
+- `SRTrack Object.obj2` → `C:\ProgramData\aviutl2\Script\SRTrack\SRTrack Object.obj2`
+- `SRTrackPreview.mod2` → `C:\ProgramData\aviutl2\Script\SRTrack\SRTrackPreview.mod2`
+
+`SRTrackPreview.mod2` は、Unicode を含む SRT パスを読み込む編集用プレビューの補助モジュールです。Exporter を使わない場合も、プレビューを使うなら必要です。
 
 ## 設定項目
 
@@ -20,6 +25,8 @@ SRTrack Object は、レンダリング済み動画に対応する SRT の参照
 これは編集時の確認専用です。SRTrack Exporter による標準テキスト・セリフ準備との中断、結合、オフセットの結果とは一致しない場合があります。プレビューをオンにしても、ファイル出力中は空画像にするため動画へ焼き込まれません。
 
 SRT は初回表示時に読み込んでキャッシュします。外部で同じ SRT を編集した場合は、AviUtl2 の「キャッシュを破棄」を実行して再読み込みしてください。
+
+SRT を Lua 側で読めない、SRT ファイルが未指定、再生速度が不正、または有効な字幕を解析できない場合は、編集画面に赤字の診断を表示します。これは確認用であり、ファイル出力には含まれません。
 
 動画のドロップ時に同名 SRT を見つけ、対応する SRTrack Object を自動作成・グループ化する処理は SRTrack Exporter 側で実装します。
 

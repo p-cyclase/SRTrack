@@ -1,5 +1,6 @@
 # Build products
 *.aux2
+*.mod2
 *.exe
 *.obj
 *.res
