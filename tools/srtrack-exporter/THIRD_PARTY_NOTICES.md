@@ -2,12 +2,12 @@
 
 ## AviUtl ExEdit2 Plugin SDK
 
-`third_party/aviutl2-sdk/plugin2.h` is from the AviUtl ExEdit2 Plugin SDK, provided by Kenkun under the MIT License. The associated copyright notice and license are included in [third_party/aviutl2-sdk/LICENSE.txt](third_party/aviutl2-sdk/LICENSE.txt). The header from the official SDK dated 2026-11-07 was converted from CP932 to UTF-8 for the build; its decoded text was otherwise verified unchanged. Other SDK files and AviUtl2 binaries are not included.
+`third_party/aviutl2-sdk/plugin2.h` and `module2.h` contain declarations from the AviUtl ExEdit2 Plugin SDK, provided by Kenkun under the MIT License. The associated copyright notice and license are included in [third_party/aviutl2-sdk/LICENSE.txt](third_party/aviutl2-sdk/LICENSE.txt). `plugin2.h` was converted from CP932 to UTF-8 and its decoded text was otherwise verified unchanged. `module2.h` contains the official declarations required by SRTrackPreview, normalized for the local build. Other SDK files and AviUtl2 binaries are not included.
 
 SDK distribution: https://spring-fragrance.mints.ne.jp/aviutl/  
 License reference (unofficial SDK mirror): https://github.com/oov/aviutl2_plugin_sdk
 
-The plugin uses the official header rather than handwritten interface declarations. A comparison of the fields used by the former declarations against this SDK passed. The SDK date alone does not establish incompatibility. Standard-text subtitle extraction and SRT output have been verified with AviUtl2 2.1.13; compatibility of the full feature set remains unverified. See [SDK policy](docs/SDK_POLICY.md).
+The plugin and Preview module use the official headers rather than handwritten interface declarations. The SDK date alone does not establish incompatibility. Standard-text subtitle extraction, SRT output, and basic Preview-module operation have been verified with AviUtl2 2.1.13; compatibility of the full feature set remains unverified. See [SDK policy](docs/SDK_POLICY.md).
 
 ## PSDToolKit
 

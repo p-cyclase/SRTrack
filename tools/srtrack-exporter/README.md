@@ -21,6 +21,8 @@ AviUtl2 の標準テキストや PSDToolKit の「セリフ準備」から、タ
 
 ビルドで得た `SRTrackExporter.aux2` を、AviUtl2 のデータフォルダ内の `Plugin` フォルダへ配置し、AviUtl2 を再起動します。通常の場所は `C:\ProgramData\aviutl2\Plugin` です。データフォルダを別の場所に設定している場合はそちらを使用してください。
 
+SRTrack Object の編集用字幕プレビューも使う場合、同時に生成される `SRTrackPreview.mod2` を `C:\ProgramData\aviutl2\Script\SRTrack` へ配置します。これは日本語を含むパスの SRT を読み込むための補助モジュールです。
+
 「ファイル」→「エクスポート」→「SRTrack Exporter（試作版）」から実行します。レイヤー名は1行に1件入力します。カンマや空白は名前の一部です。Enter キーはレイヤー名欄では改行に使い、設定から先へ進むには「次へ」を押します。
 
 ## 設定と削除

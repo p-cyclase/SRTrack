@@ -1,20 +1,6 @@
 #include <windows.h>
 #include <string>
-
-// Prefix of the official AviUtl2 SCRIPT_MODULE_PARAM layout needed here.
-// The complete definition is in the official AviUtl2 Plugin SDK module2.h.
-struct SCRIPT_MODULE_PARAM {
-    void* get_param_num; void* get_param_int; void* get_param_double;
-    const char* (*get_param_string)(int); void* get_param_data;
-    void* get_param_table_int; void* get_param_table_double; void* get_param_table_string;
-    void* get_param_array_num; void* get_param_array_int; void* get_param_array_double; void* get_param_array_string;
-    void* push_result_int; void* push_result_double; void (*push_result_string)(const char*); void* push_result_data;
-    void* push_result_table_int; void* push_result_table_double; void* push_result_table_string;
-    void* push_result_array_int; void* push_result_array_double; void* push_result_array_string;
-    void (*set_error)(const char*);
-};
-struct SCRIPT_MODULE_FUNCTION { const wchar_t* name; void (*func)(SCRIPT_MODULE_PARAM*); };
-struct SCRIPT_MODULE_TABLE { const wchar_t* information; SCRIPT_MODULE_FUNCTION* functions; };
+#include "third_party/aviutl2-sdk/module2.h"
 
 static bool utf8_to_wide(const char* input, std::wstring& output) {
     if (!input) return false;
