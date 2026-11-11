@@ -12,6 +12,7 @@ struct Caption { int layer; int start; int end; std::string text; }; // end excl
 struct Block { int start; int end; std::string text; };
 struct TimedBlock { int64_t start, end; std::string text; };
 struct SrtCaption { int64_t start, end; std::string text; size_t order; };
+struct SourceTimedCaption { int64_t start, end; std::string text; bool preserve_end; };
 
 inline bool parse_srt_timestamp(const std::string& value, int64_t& result) {
     size_t p = 0;
@@ -100,6 +101,42 @@ inline std::vector<TimedBlock> map_srt_to_scene(const std::vector<SrtCaption>& c
     return out;
 }
 
+inline std::vector<TimedBlock> integrate_timeline(std::vector<SourceTimedCaption> captions) {
+    std::stable_sort(captions.begin(), captions.end(), [](const SourceTimedCaption& a, const SourceTimedCaption& b) {
+        return a.start < b.start;
+    });
+    std::vector<TimedBlock> out;
+    bool active = false;
+    SourceTimedCaption current{};
+    for (const auto& next : captions) {
+        if (next.end <= next.start || next.text.empty()) continue;
+        if (active) {
+            int64_t end = current.preserve_end ? std::min(current.end, next.start) : next.start;
+            if (end > current.start) out.push_back({current.start, end, current.text});
+        }
+        current = next;
+        active = true;
+    }
+    if (active && current.end > current.start) out.push_back({current.start, current.end, current.text});
+    return out;
+}
+
+inline std::vector<TimedBlock> merge_timed_blocks(const std::vector<TimedBlock>& raw,
+                                                   int64_t threshold_ms, int64_t final_min_ms) {
+    std::vector<TimedBlock> out;
+    for (size_t i = 0; i < raw.size();) {
+        TimedBlock block = raw[i++];
+        while (block.end - block.start <= threshold_ms && i < raw.size()) {
+            block.text += "\n" + raw[i].text;
+            block.end = raw[i++].end;
+        }
+        if (i == raw.size() && block.end - block.start <= threshold_ms)
+            block.end = std::max(block.end, block.start + final_min_ms);
+        out.push_back(block);
+    }
+    return out;
+}
+
 inline bool parse_offset(const std::wstring& input, int64_t& result) {
     size_t i = 0;
     while (i < input.size() && iswspace(input[i])) ++i;
@@ -158,23 +195,13 @@ inline std::vector<TimedBlock> build_timeline(std::vector<Caption> captions, int
     std::stable_sort(captions.begin(), captions.end(), [](const Caption& a, const Caption& b) {
         return a.start != b.start ? a.start < b.start : a.layer < b.layer;
     });
-    std::vector<TimedBlock> raw, out;
+    std::vector<TimedBlock> raw;
     for (size_t i=0; i<captions.size(); ++i) {
         int end = i+1 < captions.size() ? captions[i+1].start : captions[i].end;
         raw.push_back({frame_milliseconds(captions[i].start,rate,scale),
                        frame_milliseconds(end,rate,scale),captions[i].text});
     }
-    for (size_t i=0; i<raw.size();) {
-        TimedBlock block=raw[i++];
-        while (block.end-block.start <= threshold_ms && i < raw.size()) {
-            block.text += "\n" + raw[i].text;
-            block.end = raw[i++].end;
-        }
-        if (i==raw.size() && block.end-block.start <= threshold_ms)
-            block.end=std::max(block.end,block.start+final_min_ms);
-        out.push_back(block);
-    }
-    return out;
+    return merge_timed_blocks(raw, threshold_ms, final_min_ms);
 }
 
 inline std::vector<TimedBlock> shift_timeline(const std::vector<TimedBlock>& blocks,

@@ -41,4 +41,10 @@ int main() {
   assert(mapped.size()==2 && mapped[0].start==10000 && mapped[0].end==11000);
   assert(mapped[1].start==12000 && mapped[1].end==12500);
   assert(parse_srt("1\n00:00:00,000 --> 00:00:00,000\n不正\n",&rejected).empty() && rejected==1);
+  auto integrated=integrate_timeline({{0,5000,"A",true},{2000,3000,"X",false},{5000,8000,"B",true}});
+  assert(integrated.size()==3 && integrated[0].text=="A" && integrated[0].end==2000);
+  assert(integrated[1].text=="X" && integrated[1].start==2000 && integrated[1].end==5000);
+  assert(integrated[2].text=="B" && integrated[2].start==5000 && integrated[2].end==8000);
+  auto gap=integrate_timeline({{0,2000,"A",true},{4000,5000,"B",true}});
+  assert(gap.size()==2 && gap[0].end==2000 && gap[1].start==4000);
 }
