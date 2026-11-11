@@ -13,7 +13,7 @@
 - 当面の対象は AviUtl ExEdit2 2.1.13。
 - SRTrack Exporter は AviUtl2 Plugin SDK の同梱ヘッダーを使用する。SDK の日付だけで互換性を判断しない。
 - PSDToolKit はセリフ準備の読取り対象であるが、同梱しない。
-- SRTrack Object から必要な設定を取得できるかは、SDK と実機で検証する。
+- SRTrack Object から必要な設定を取得できるかは、SDK と実機で検証する。自動生成・グループ化に必要な公式の連携手段も確認する。
 
 ### 外部製作物の扱い
 

@@ -40,8 +40,8 @@ AviUtl2 のプロジェクト内にある標準テキストや PSDToolKit のセ
 | --- | --- |
 | SRTrack Exporter | 実装済み。標準テキストからの字幕取得と SRT 出力は AviUtl2 2.1.13 で確認済み。 |
 | PSDToolKit のセリフ準備の読取り | 実装済み。実機での互換性・設定値の保存形式は未検証。 |
-| SRTrack Object | 未実装。 |
-| SRTrack Object からの出力 | 未実装。 |
+| SRTrack Object | 非描画オブジェクト定義を追加済み。AviUtl2 上での読み込みは未検証。 |
+| SRTrack Object からの出力 | SRT 解析・固定正速度での時間変換を実装中。実機検証は未実施。 |
 | 字幕プレビュー／描画 | 初期版の対象外。 |
 
 ## 初期版の到達点

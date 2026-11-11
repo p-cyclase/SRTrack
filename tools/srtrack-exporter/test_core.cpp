@@ -34,4 +34,11 @@ int main() {
   assert(written==2 && omitted==1);
   assert(advanced.find("1\r\n00:00:00,000 --> 00:00:00,500")!=std::string::npos);
   assert(srt(b,30,1,-6000,&written,&omitted).empty() && written==0 && omitted==3);
+  size_t rejected=0;
+  auto source=parse_srt("\xEF\xBB\xBF" "1\r\n00:00:01,000 --> 00:00:03,000\r\n第一行\r\n第二行\r\n\r\n2\r\n00:00:05,000 --> 00:00:06,000\r\n次\r\n",&rejected);
+  assert(rejected==0 && source.size()==2 && source[0].text=="第一行\n第二行");
+  auto mapped=map_srt_to_scene(source,10000,14000,1000,2.0);
+  assert(mapped.size()==2 && mapped[0].start==10000 && mapped[0].end==11000);
+  assert(mapped[1].start==12000 && mapped[1].end==12500);
+  assert(parse_srt("1\n00:00:00,000 --> 00:00:00,000\n不正\n",&rejected).empty() && rejected==1);
 }

@@ -4,3 +4,4 @@
 *.md text eol=lf
 *.rc text eol=lf
 *.cmd text eol=crlf
+*.obj2 text eol=lf

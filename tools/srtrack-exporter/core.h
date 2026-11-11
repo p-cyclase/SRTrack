@@ -11,6 +11,94 @@
 struct Caption { int layer; int start; int end; std::string text; }; // end exclusive
 struct Block { int start; int end; std::string text; };
 struct TimedBlock { int64_t start, end; std::string text; };
+struct SrtCaption { int64_t start, end; std::string text; size_t order; };
+
+inline bool parse_srt_timestamp(const std::string& value, int64_t& result) {
+    size_t p = 0;
+    while (p < value.size() && (value[p] == ' ' || value[p] == '\t')) ++p;
+    auto number = [&](size_t digits, int64_t& out) {
+        if (p + digits > value.size()) return false;
+        out = 0;
+        for (size_t i = 0; i < digits; ++i) {
+            if (value[p + i] < '0' || value[p + i] > '9') return false;
+            out = out * 10 + value[p + i] - '0';
+        }
+        p += digits;
+        return true;
+    };
+    int64_t h = 0, m = 0, s = 0, ms = 0;
+    size_t hour_start = p;
+    while (p < value.size() && value[p] >= '0' && value[p] <= '9') ++p;
+    if (p == hour_start || p >= value.size() || value[p++] != ':') return false;
+    for (size_t i = hour_start; i < p - 1; ++i) h = h * 10 + value[i] - '0';
+    if (!number(2, m) || p >= value.size() || value[p++] != ':' || !number(2, s) || p >= value.size() || (value[p] != ',' && value[p] != '.')) return false;
+    ++p;
+    if (!number(3, ms) || m > 59 || s > 59) return false;
+    while (p < value.size() && (value[p] == ' ' || value[p] == '\t')) ++p;
+    if (p != value.size()) return false;
+    result = ((h * 60 + m) * 60 + s) * 1000 + ms;
+    return true;
+}
+
+inline std::vector<SrtCaption> parse_srt(const std::string& input, size_t* rejected = nullptr) {
+    std::string data = input;
+    if (data.size() >= 3 && static_cast<unsigned char>(data[0]) == 0xef && static_cast<unsigned char>(data[1]) == 0xbb && static_cast<unsigned char>(data[2]) == 0xbf) data.erase(0, 3);
+    std::string normalized;
+    normalized.reserve(data.size());
+    for (size_t i = 0; i < data.size(); ++i) {
+        if (data[i] == '\r') { if (i + 1 < data.size() && data[i + 1] == '\n') ++i; normalized += '\n'; }
+        else normalized += data[i];
+    }
+    std::vector<SrtCaption> out;
+    size_t bad = 0, block_start = 0;
+    auto parse_block = [&](const std::string& block) {
+        if (block.empty()) return;
+        std::vector<std::string> lines;
+        size_t start = 0;
+        while (start <= block.size()) {
+            size_t end = block.find('\n', start);
+            lines.push_back(block.substr(start, end == std::string::npos ? std::string::npos : end - start));
+            if (end == std::string::npos) break;
+            start = end + 1;
+        }
+        size_t time_line = !lines.empty() && lines[0].find_first_not_of("0123456789 \t") == std::string::npos ? 1 : 0;
+        if (time_line >= lines.size()) { ++bad; return; }
+        size_t arrow = lines[time_line].find("-->");
+        if (arrow == std::string::npos) { ++bad; return; }
+        int64_t begin = 0, end = 0;
+        if (!parse_srt_timestamp(lines[time_line].substr(0, arrow), begin) || !parse_srt_timestamp(lines[time_line].substr(arrow + 3), end) || end <= begin) { ++bad; return; }
+        std::string text;
+        for (size_t i = time_line + 1; i < lines.size(); ++i) { if (i > time_line + 1) text += '\n'; text += lines[i]; }
+        if (text.empty()) { ++bad; return; }
+        out.push_back({begin, end, text, out.size()});
+    };
+    while (block_start < normalized.size()) {
+        size_t block_end = normalized.find("\n\n", block_start);
+        if (block_end == std::string::npos) { parse_block(normalized.substr(block_start)); break; }
+        parse_block(normalized.substr(block_start, block_end - block_start));
+        block_start = block_end + 2;
+        while (block_start < normalized.size() && normalized[block_start] == '\n') ++block_start;
+    }
+    if (rejected) *rejected = bad;
+    return out;
+}
+
+inline std::vector<TimedBlock> map_srt_to_scene(const std::vector<SrtCaption>& captions, int64_t object_start,
+                                                 int64_t object_end, int64_t source_start, double speed) {
+    std::vector<TimedBlock> out;
+    if (object_end <= object_start || speed <= 0) return out;
+    const double source_end = source_start + speed * (object_end - object_start);
+    for (const auto& caption : captions) {
+        double left = std::max<double>(caption.start, source_start);
+        double right = std::min<double>(caption.end, source_end);
+        if (right <= left) continue;
+        int64_t start = object_start + static_cast<int64_t>((left - source_start) / speed + 0.5);
+        int64_t end = object_start + static_cast<int64_t>((right - source_start) / speed + 0.5);
+        start = std::max(start, object_start); end = std::min(end, object_end);
+        if (end > start) out.push_back({start, end, caption.text});
+    }
+    return out;
+}
 
 inline bool parse_offset(const std::wstring& input, int64_t& result) {
     size_t i = 0;
