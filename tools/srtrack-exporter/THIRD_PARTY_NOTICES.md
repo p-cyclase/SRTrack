@@ -7,7 +7,7 @@
 SDK distribution: https://spring-fragrance.mints.ne.jp/aviutl/  
 License reference (unofficial SDK mirror): https://github.com/oov/aviutl2_plugin_sdk
 
-The plugin uses the official header rather than handwritten interface declarations. A comparison of the fields used by the former declarations against this SDK passed. The SDK date alone does not establish incompatibility; runtime behavior with AviUtl2 2.1.13 has **not** yet been verified. See [SDK policy](docs/SDK_POLICY.md).
+The plugin uses the official header rather than handwritten interface declarations. A comparison of the fields used by the former declarations against this SDK passed. The SDK date alone does not establish incompatibility. Standard-text subtitle extraction and SRT output have been verified with AviUtl2 2.1.13; compatibility of the full feature set remains unverified. See [SDK policy](docs/SDK_POLICY.md).
 
 ## PSDToolKit
 

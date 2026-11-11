@@ -16,7 +16,7 @@ struct Settings {
  std::wstring numbers=L"", names=L"", offset=L"0", threshold=L"0", final_min=L"1";
 };
 static Settings settings;
-static constexpr wchar_t registry_key[]=L"Software\\SubtitleExportAviUtl2";
+static constexpr wchar_t registry_key[]=L"Software\\SRTrackExporter";
 
 static std::wstring read_string(HKEY k,const wchar_t* name,const std::wstring& fallback) {
  DWORD type=0,size=0;
@@ -86,29 +86,29 @@ static std::string decode_value(const char* raw){std::string out;for(size_t i=0;
 static bool empty_text(const std::string& s){return s.find_first_not_of(" \t\r\n")==std::string::npos;}
 static bool write_file(const wchar_t* path,const std::string& bytes){HANDLE f=CreateFileW(path,GENERIC_WRITE,0,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);if(f==INVALID_HANDLE_VALUE)return false;DWORD n=0;bool ok=bytes.size()<=MAXDWORD&&WriteFile(f,bytes.data(),DWORD(bytes.size()),&n,nullptr)&&n==bytes.size();if(!CloseHandle(f))ok=false;return ok;}
 static void export_subtitles(EDIT_SECTION* edit){
- HWND owner=GetActiveWindow();if(!edit||!edit->info||edit->info->rate<=0||edit->info->scale<=0){MessageBoxW(owner,L"シーン情報を取得できません。",L"字幕出力",MB_ICONERROR);return;}
+ HWND owner=GetActiveWindow();if(!edit||!edit->info||edit->info->rate<=0||edit->info->scale<=0){MessageBoxW(owner,L"シーン情報を取得できません。",L"SRTrack Exporter",MB_ICONERROR);return;}
  if(DialogBoxParamW(module_handle,MAKEINTRESOURCEW(101),owner,dialog,0)!=IDOK)return;
  std::set<int> layers;std::vector<std::wstring> missing;
  if(settings.all){for(int i=0;i<=edit->info->layer_max;++i)layers.insert(i);}
  else {parse_layers(settings.numbers,layers);auto names=split_names(settings.names);std::vector<bool> found(names.size(),false);
   for(int i=0;i<=edit->info->layer_max;++i){LPCWSTR name=edit->get_layer_name(i);if(!name)continue;for(size_t j=0;j<names.size();++j)if(names[j]==name){layers.insert(i);found[j]=true;}}
   for(size_t j=0;j<names.size();++j)if(!found[j])missing.push_back(names[j]);}
- if(!missing.empty()){std::wstring message=L"次のレイヤー名が見つかりませんでした。\n";for(const auto& n:missing)message+=L"・"+n+L"\n";message+=L"\n見つかった対象で続行しますか？";if(MessageBoxW(owner,message.c_str(),L"字幕出力",MB_YESNO|MB_ICONWARNING)!=IDYES)return;}
+ if(!missing.empty()){std::wstring message=L"次のレイヤー名が見つかりませんでした。\n";for(const auto& n:missing)message+=L"・"+n+L"\n";message+=L"\n見つかった対象で続行しますか？";if(MessageBoxW(owner,message.c_str(),L"SRTrack Exporter",MB_YESNO|MB_ICONWARNING)!=IDYES)return;}
  std::vector<Caption> captions;int warnings=0;
  for(int layer:layers){int pos=0;while(pos<=edit->info->frame_max){auto obj=edit->find_object(layer,pos);if(!obj)break;auto loc=edit->get_object_layer_frame(obj);if(loc.layer!=layer||loc.end<pos||loc.end==INT_MAX){++warnings;break;}
   const wchar_t* effect=nullptr;bool isdialogue=edit->count_object_effect(obj,L"セリフ準備@PSDToolKit")>0;
   if(isdialogue){if(settings.dialogue)effect=L"セリフ準備@PSDToolKit";}else if(settings.text&&edit->count_object_effect(obj,L"テキスト")>0)effect=L"テキスト";
   if(effect){const char* raw=edit->get_object_item_value(obj,effect,L"テキスト");if(!raw)++warnings;else{std::string text=decode_value(raw);if(text.find('<')!=std::string::npos||text.find("\n\n")!=std::string::npos)++warnings;if(!empty_text(text))captions.push_back({layer,loc.start,loc.end+1,text});}}
   pos=loc.end+1;}}
- if(captions.empty()){MessageBoxW(owner,L"字幕を取得できませんでした。対象レイヤーとオブジェクトを確認してください。",L"字幕出力",MB_ICONWARNING);return;}
+ if(captions.empty()){MessageBoxW(owner,L"字幕を取得できませんでした。対象レイヤーとオブジェクトを確認してください。",L"SRTrack Exporter",MB_ICONWARNING);return;}
  int64_t offset=0,threshold=0,minimum=1000;parse_offset(settings.offset,offset);parse_offset(settings.threshold,threshold);parse_offset(settings.final_min,minimum);
  auto blocks=build_timeline(captions,edit->info->rate,edit->info->scale,threshold,minimum);size_t omitted=0;auto shifted=shift_timeline(blocks,offset,&omitted);auto output=render_srt(shifted);
- if(output.empty()){MessageBoxW(owner,L"オフセットを適用すると全ての字幕が動画開始前になるため、出力できません。",L"字幕出力",MB_ICONWARNING);return;}
- if(warnings&&MessageBoxW(owner,L"取得できない項目や制御文字等を検出しました。出力内容の確認が必要です。続けますか？",L"字幕出力",MB_YESNO|MB_ICONWARNING)!=IDYES)return;
+ if(output.empty()){MessageBoxW(owner,L"オフセットを適用すると全ての字幕が動画開始前になるため、出力できません。",L"SRTrack Exporter",MB_ICONWARNING);return;}
+ if(warnings&&MessageBoxW(owner,L"取得できない項目や制御文字等を検出しました。出力内容の確認が必要です。続けますか？",L"SRTrack Exporter",MB_YESNO|MB_ICONWARNING)!=IDYES)return;
  wchar_t path[32768]=L"subtitles.srt";OPENFILENAMEW ofn{};ofn.lStructSize=sizeof(ofn);ofn.hwndOwner=owner;ofn.lpstrFilter=L"SRT 字幕 (*.srt)\0*.srt\0\0";ofn.lpstrFile=path;ofn.nMaxFile=32768;ofn.lpstrDefExt=L"srt";ofn.Flags=OFN_OVERWRITEPROMPT|OFN_PATHMUSTEXIST|OFN_NOCHANGEDIR;
- if(!GetSaveFileNameW(&ofn))return;if(!write_file(path,output)){MessageBoxW(owner,L"ファイルの書き込みに失敗しました。",L"字幕出力",MB_ICONERROR);return;}
- std::wstring msg=L"出力しました。\n対象: "+std::to_wstring(captions.size())+L" 件\n字幕: "+std::to_wstring(shifted.size())+L" 件\n開始前のため除外: "+std::to_wstring(omitted)+L" 件\n警告: "+std::to_wstring(warnings)+L" 件\n\n"+path;MessageBoxW(owner,msg.c_str(),L"字幕出力",MB_OK);
+ if(!GetSaveFileNameW(&ofn))return;if(!write_file(path,output)){MessageBoxW(owner,L"ファイルの書き込みに失敗しました。",L"SRTrack Exporter",MB_ICONERROR);return;}
+ std::wstring msg=L"出力しました。\n対象: "+std::to_wstring(captions.size())+L" 件\n字幕: "+std::to_wstring(shifted.size())+L" 件\n開始前のため除外: "+std::to_wstring(omitted)+L" 件\n警告: "+std::to_wstring(warnings)+L" 件\n\n"+path;MessageBoxW(owner,msg.c_str(),L"SRTrack Exporter",MB_OK);
 }
 BOOL WINAPI DllMain(HINSTANCE instance,DWORD reason,LPVOID){if(reason==DLL_PROCESS_ATTACH)module_handle=instance;return TRUE;}
-extern "C" __declspec(dllexport) COMMON_PLUGIN_TABLE* GetCommonPluginTable(){static COMMON_PLUGIN_TABLE t{L"SRT字幕出力（試作版）",L"字幕を SRT に出力します"};return &t;}
-extern "C" __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE* host){load_settings();host->register_export_menu(L"SRT字幕出力（試作版）",export_subtitles);}
+extern "C" __declspec(dllexport) COMMON_PLUGIN_TABLE* GetCommonPluginTable(){static COMMON_PLUGIN_TABLE t{L"SRTrack Exporter（試作版）",L"字幕を SRT に出力します"};return &t;}
+extern "C" __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE* host){load_settings();host->register_export_menu(L"SRTrack Exporter（試作版）",export_subtitles);}
