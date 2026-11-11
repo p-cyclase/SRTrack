@@ -1,8 +1,8 @@
 --label:SRTrack
---information:SRTrack Object 0.3 by p_cyclase
+--information:SRTrack Object 0.4 by p_cyclase
 --file@file:SRT ファイル
---value@start_ms:SRT 再生開始（ミリ秒）,0
---value@speed:SRT 再生速度,1
+--track@position:再生位置,0,86400,0,0.001
+--track@speed:再生速度,0.01,1000,100,0.01
 --check@preview:字幕プレビュー,true
 
 -- SRTrack Object keeps SRT timing metadata for SRTrack Exporter.
@@ -116,7 +116,7 @@ else
         if #captions == 0 and bytes ~= "" then
             draw_preview("[SRTrack] 有効な SRT 字幕が見つかりません", 0xff8080, 0x400000)
         else
-            local text = preview_text(captions, start_ms + speed * obj.time * 1000)
+            local text = preview_text(captions, position * 1000 + (speed / 100) * obj.time * 1000)
             if text == "" then
                 clear_preview()
             else
