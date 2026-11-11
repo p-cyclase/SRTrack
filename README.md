@@ -5,7 +5,7 @@ AviUtl2 での SRT 字幕出力を支援するツールキットです。レン�
 ## ツール一覧
 
 - [SRTrack Exporter](tools/srtrack-exporter/README.md)：標準テキストや PSDToolKit の「セリフ準備」から SRT 字幕を出力する試作プラグイン。対応環境、ビルド方法、現在の制約は各ツールの README を参照してください。
-- [SRTrack Object](tools/srtrack-object/README.md)：SRT と再生設定を保持する非描画カスタムオブジェクトです。動画との自動生成・同期は実装中です。[全体仕様書](docs/spec/README.md)に目的、連携案、未決定事項をまとめています。
+- [SRTrack Object](tools/srtrack-object/README.md)：SRT と再生設定を保持するカスタムオブジェクトです。編集用の字幕プレビューは切り替え可能で、書き出し動画には反映されません。動画との自動生成・同期は実装中です。[全体仕様書](docs/spec/README.md)に目的、連携案、未決定事項をまとめています。
 
 ## 開発状況
 

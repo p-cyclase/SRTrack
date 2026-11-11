@@ -1,8 +1,105 @@
 --label:SRTrack
---information:SRTrack Object 0.1 by p_cyclase
+--information:SRTrack Object 0.2 by p_cyclase
 --file@file:SRT ファイル
 --value@start_ms:SRT 再生開始（ミリ秒）,0
 --value@speed:SRT 再生速度,1
+--check@preview:字幕プレビュー,true
 
--- SRTrack Object is intentionally non-rendering.
--- SRTrack Exporter reads its configuration and timeline range.
+-- SRTrack Object keeps SRT timing metadata for SRTrack Exporter.
+-- Its optional preview is for editing only and is deliberately blank while saving.
+
+local function parse_timestamp(value)
+    local h, m, s, ms = value:match("^%s*(%d+):(%d+):(%d+)[,.](%d+)%s*$")
+    local fraction = value:match("[,.](%d+)%s*$")
+    h, m, s, ms = tonumber(h), tonumber(m), tonumber(s), tonumber(ms)
+    if not h or not m or not s or not ms or not fraction or m >= 60 or s >= 60 then
+        return nil
+    end
+    if #fraction == 1 then
+        ms = ms * 100
+    elseif #fraction == 2 then
+        ms = ms * 10
+    end
+    return ((h * 60 + m) * 60 + s) * 1000 + ms
+end
+
+local function parse_srt(bytes)
+    bytes = bytes:gsub("^\239\187\191", ""):gsub("\r\n", "\n"):gsub("\r", "\n")
+    local captions = {}
+    for block in (bytes .. "\n\n"):gmatch("(.-)\n\n") do
+        local lines = {}
+        for line in (block .. "\n"):gmatch("(.-)\n") do
+            lines[#lines + 1] = line
+        end
+        local timing_line
+        local timing_index
+        for index, line in ipairs(lines) do
+            if line:find("%-%->") then
+                timing_line, timing_index = line, index
+                break
+            end
+        end
+        if timing_line then
+            local left, right = timing_line:match("^%s*(.-)%s*%-%-%>%s*(.-)%s*$")
+            local start, finish = left and parse_timestamp(left), right and parse_timestamp(right)
+            if start and finish and finish > start then
+                local text = table.concat(lines, "\n", timing_index + 1)
+                if text ~= "" then
+                    captions[#captions + 1] = { start = start, finish = finish, text = text }
+                end
+            end
+        end
+    end
+    return captions
+end
+
+local function read_srt_bytes(path)
+    if not io or not io.open or path == "" then
+        return nil
+    end
+    local handle = io.open(path, "rb")
+    if not handle then
+        return nil
+    end
+    local bytes = handle:read("*a")
+    handle:close()
+    return bytes
+end
+
+local function preview_text(captions, source_time)
+    local active = {}
+    for _, caption in ipairs(captions or {}) do
+        if caption.start > source_time then
+            break
+        end
+        if caption.start <= source_time and source_time < caption.finish then
+            active[#active + 1] = caption.text
+        end
+    end
+    return table.concat(active, "\n")
+end
+
+local function clear_preview()
+    obj.load("text", "")
+end
+
+if not preview or obj.getinfo("saving") or not file or file == "" or not speed or speed <= 0 then
+    clear_preview()
+else
+    local cache_prefix = "__srtrack_preview_" .. obj.id
+    local path_key = cache_prefix .. "_path"
+    local bytes_key = cache_prefix .. "_bytes"
+    if global[path_key] ~= file then
+        global[path_key] = file
+        global[bytes_key] = read_srt_bytes(file) or ""
+    end
+
+    local captions = parse_srt(global[bytes_key] or "")
+    local text = preview_text(captions, start_ms + speed * obj.time * 1000)
+    if text == "" then
+        clear_preview()
+    else
+        obj.setfont("MS UI Gothic", 48, 3, 0xffffff, 0x000000, true)
+        obj.load("text", text, 0, 0, 4)
+    end
+end
