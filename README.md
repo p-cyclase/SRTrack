@@ -39,7 +39,22 @@ SRTrack.mod2
 └─ Object の字幕プレビュー用補助モジュール
 ```
 
-現行リポジトリの `SRTrackExporter.aux2`、`SRTrackImporter.aux2`、`SRTrackImporter.lua`、`SRTrack Object.obj2`、`SRTrackPreview.mod2` は、統合前の開発中ファイル名です。完成時には上記の配布名へ統一します。
+リポジトリも完成時の配布名に合わせ、`src/aux2`、`src/lua`、`src/object`、`src/mod2` へ実装を分けています。`build.cmd` は4ファイルを `out/` に生成します。
+
+## リポジトリ構成
+
+```text
+src/
+├─ aux2/       Exporter・Importer・将来の Monitor を収録する DLL の実装
+├─ lua/        GCMZDrops2 に登録する SRTrack.lua
+├─ object/     SRTrack.obj2
+└─ mod2/       SRTrack.mod2 の実装
+
+tests/         変換・入力処理の単体テスト
+third_party/   AviUtl2 Plugin SDK の必要なヘッダーとライセンス
+docs/          全体仕様、コンポーネント別資料、初期設計メモ
+build.cmd      out/ へ配布用4ファイルを生成するビルドスクリプト
+```
 
 ## 基本的な利用の流れ
 
@@ -82,4 +97,4 @@ Importer を使う場合は GCMZDrops2 と L-SMASH Works が必要です。い�
 
 ## ライセンス
 
-SRTrack のコードは [MIT License](tools/srtrack-exporter/LICENSE) です。AviUtl2 SDK および第三者コンポーネントについては、[第三者の権利表記](tools/srtrack-exporter/THIRD_PARTY_NOTICES.md) を参照してください。
+SRTrack のコードは [MIT License](LICENSE) です。AviUtl2 SDK および第三者コンポーネントについては、[第三者の権利表記](THIRD_PARTY_NOTICES.md) を参照してください。

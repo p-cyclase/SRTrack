@@ -1,4 +1,4 @@
-#include "plugin.cpp"
+#include "../src/aux2/exporter.cpp"
 #include <cassert>
 #include <cstddef>
 int main() {

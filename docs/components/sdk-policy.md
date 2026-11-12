@@ -23,6 +23,6 @@ SDKを直接使わずにプラグインを作ること自体を問題視する�
 
 ## 権利と配布
 
-このプラグイン本体は `p_cyclase` 名義のMITライセンスとする。AviUtl2 SDKの同梱部分には、SDK側のMITライセンスと著作権表示を別途保持する。詳細は [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) および [SDKのライセンス](../third_party/aviutl2-sdk/LICENSE.txt) を参照。
+このプラグイン本体は `p_cyclase` 名義のMITライセンスとする。AviUtl2 SDKの同梱部分には、SDK側のMITライセンスと著作権表示を別途保持する。詳細は [第三者の権利表記](../../THIRD_PARTY_NOTICES.md) および [SDKのライセンス](../../third_party/aviutl2-sdk/LICENSE.txt) を参照。
 
 SDKの使用・同梱とAviUtl2本体の配布は別に扱う。本体はこのリポジトリには含めない。外部字幕ツールは対応対象であっても同梱しない。配布用バイナリを作る場合は、MSVCランタイムを含め、使用したビルド環境の再配布条件を別途確認する。

@@ -1,6 +1,6 @@
-# SRTrack Object for AviUtl2
+# SRTrack Object
 
-> このディレクトリは統合前の Object 実装を置く開発用の場所です。完成時の配布名は `SRTrack.obj2` と `SRTrack.mod2` です。
+> Object の実装は `src/object/SRTrack.obj2`、プレビュー補助モジュールの実装は `src/mod2/module.cpp` に置きます。配布名は `SRTrack.obj2` と `SRTrack.mod2` です。
 
 SRTrack Object は、レンダリング済み動画に対応する SRT の参照と時間変換設定を保持するカスタムオブジェクトです。SRTrack Exporter が読み取る字幕ソースとして使います。必要なら、編集画面だけで現在の SRT 字幕を確認する補助プレビューを表示できます。
 
@@ -8,10 +8,10 @@ SRTrack Object は、レンダリング済み動画に対応する SRT の参照
 
 次の2ファイルをコピーして AviUtl2 を再起動します。
 
-- `SRTrack Object.obj2` → `C:\ProgramData\aviutl2\Script\SRTrack\SRTrack Object.obj2`
-- `SRTrackPreview.mod2` → `C:\ProgramData\aviutl2\Script\SRTrack\SRTrackPreview.mod2`
+- `out\Script\SRTrack\SRTrack.obj2` → `C:\ProgramData\aviutl2\Script\SRTrack\SRTrack.obj2`
+- `out\Script\SRTrack\SRTrack.mod2` → `C:\ProgramData\aviutl2\Script\SRTrack\SRTrack.mod2`
 
-上記は現行試作版の導入名です。完成時は `SRTrack.obj2` と `SRTrack.mod2` に統一します。`SRTrack.mod2` は、Unicode を含む SRT パスを読み込む編集用プレビューの補助モジュールです。Exporter を使わない場合も、プレビューを使うなら必要です。
+`SRTrack.mod2` は、Unicode を含む SRT パスを読み込む編集用プレビューの補助モジュールです。Exporter を使わない場合も、プレビューを使うなら必要です。
 
 ## 設定項目
 
@@ -49,4 +49,4 @@ SRT の最終字幕時刻は元動画の長さではないため、ループ周�
 
 ## ライセンス
 
-SRTrack Object と編集用の `SRTrack.mod2`（現行開発名 `SRTrackPreview.mod2`）は、SRTrack Exporter と同じ [MIT License](../srtrack-exporter/LICENSE) です。
+SRTrack Object と編集用の `SRTrack.mod2` は、SRTrack Exporter と同じ [MIT License](../../LICENSE) です。

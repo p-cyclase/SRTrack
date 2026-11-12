@@ -1,4 +1,4 @@
--- SRTrack Importer handler for GCMZDrops2.
+-- SRTrack Importer handler for GCMZDrops2, loaded from SRTrack.lua.
 -- Uses only GCMZDrops2's documented handler API.  A matching video/SRT pair
 -- is replaced with one standard AviUtl2 multi-object alias, which preserves
 -- the pair's group relationship on import.

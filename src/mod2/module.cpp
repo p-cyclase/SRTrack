@@ -1,6 +1,6 @@
 #include <windows.h>
 #include <string>
-#include "third_party/aviutl2-sdk/module2.h"
+#include "../../third_party/aviutl2-sdk/module2.h"
 
 static bool utf8_to_wide(const char* input, std::wstring& output) {
     if (!input) return false;
@@ -28,5 +28,5 @@ static void read_utf8_file(SCRIPT_MODULE_PARAM* param) {
 }
 
 static SCRIPT_MODULE_FUNCTION functions[] = {{L"read_utf8_file", read_utf8_file}, {nullptr, nullptr}};
-static SCRIPT_MODULE_TABLE module_table = {L"SRTrack Preview Module 0.1 by p_cyclase", functions};
+static SCRIPT_MODULE_TABLE module_table = {L"SRTrack Module 0.1 by p_cyclase", functions};
 extern "C" __declspec(dllexport) SCRIPT_MODULE_TABLE* GetScriptModuleTable() { return &module_table; }

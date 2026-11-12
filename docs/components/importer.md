@@ -1,6 +1,6 @@
-# SRTrack Importer for AviUtl2
+# Importer
 
-> このディレクトリは統合前の Importer 実装を置く開発用の場所です。完成時は Exporter・Monitor とともに `SRTrack.aux2` へ収録し、ハンドラースクリプトは `SRTrack.lua` として配布します。
+> Importer は `SRTrack.aux2` 内の論理コンポーネントです。GCMZDrops2 用ハンドラースクリプトは `SRTrack.lua` として同じ Plugin フォルダへ配布します。
 
 GCMZDrops2 の公開ハンドラースクリプト API を通じ、動画ファイルのドラッグ＆ドロップ時に同じフォルダの同名 SRT を検出して SRTrack Object を追加する試作コンポーネントです。GCMZDrops2 と L-SMASH Works を前提プラグインとし、いずれも同梱しません。
 
@@ -10,14 +10,14 @@ GCMZDrops2 の公開ハンドラースクリプト API を通じ、動画ファ�
 
 ## ビルドと導入
 
-現行試作版では、GCMZDrops2、L-SMASH Works、SRTrack Object、SRTrackPreview を導入した環境が必要です。`build.cmd` を実行して生成した `SRTrackImporter.aux2` と、`SRTrackImporter.lua` を、AviUtl2 の `Plugin\\SRTrack` など **SRTrack 専用の同じフォルダ**へコピーして AviUtl2 を再起動してください。GCMZDrops2 のフォルダへ SRTrack のファイルをコピーする必要はありません。
+GCMZDrops2、L-SMASH Works、SRTrack Object を導入した環境が必要です。`build.cmd` を実行して生成した `out\Plugin\SRTrack\SRTrack.aux2` と `SRTrack.lua` を、AviUtl2 の `Plugin\\SRTrack` など **SRTrack 専用の同じフォルダ**へコピーして AviUtl2 を再起動してください。GCMZDrops2 のフォルダへ SRTrack のファイルをコピーする必要はありません。
 
 完成時の配布では、`SRTrack.aux2` と `SRTrack.lua` を同じ SRTrack 専用フォルダへ置きます。Object 側は `SRTrack.obj2` と `SRTrack.mod2` を Script フォルダへ置きます。
 
-`SRTrackImporter.aux2` は、GCMZDrops2 が公開している `AddHandlerScriptFile` だけを使い、同じ SRTrack フォルダ内の Lua ファイルを起動時に登録します。GCMZDrops2 が導入・有効化されていない場合は、通常の動画ドロップに介入しません。
+`SRTrack.aux2` は、GCMZDrops2 が公開している `AddHandlerScriptFile` だけを使い、同じ SRTrack フォルダ内の `SRTrack.lua` を起動時に登録します。GCMZDrops2 が導入・有効化されていない場合は、通常の動画ドロップに介入しません。
 
 固定の対応拡張子一覧は持ちません。同名 SRT があるファイルについて、GCMZDrops2 の公開メディア情報 API が動画トラックを取得できた場合だけ Object を追加します。そのため、対応範囲は導入済みの L-SMASH Works と標準 AVI 読込が実際に扱える動画形式に従います。
 
 ## ライセンス
 
-コードは [MIT License](../srtrack-exporter/LICENSE) です。SDK の権利表記は [SRTrack Exporter の第三者表記](../srtrack-exporter/THIRD_PARTY_NOTICES.md) を参照してください。
+コードは [MIT License](../../LICENSE) です。SDK の権利表記は [第三者の権利表記](../../THIRD_PARTY_NOTICES.md) を参照してください。

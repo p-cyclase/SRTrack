@@ -1,4 +1,4 @@
-#include "core.h"
+#include "../src/aux2/core.h"
 #include <cassert>
 int main() {
   auto timeline=build_timeline({{1,0,300,"章"},{2,60,90,"こんにちは"},{3,150,180,"次"}},30,1,0,1000);

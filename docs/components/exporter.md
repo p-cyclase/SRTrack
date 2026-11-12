@@ -1,6 +1,6 @@
-# SRTrack Exporter for AviUtl2
+# Exporter
 
-> このディレクトリは統合前の Exporter 実装を置く開発用の場所です。完成時は Importer・Monitor とともに `SRTrack.aux2` へ収録します。
+> Exporter は `SRTrack.aux2` 内の論理コンポーネントです。Importer・Monitor と同じ DLL に収録しますが、責務とソースは分けます。
 
 AviUtl2 の標準テキストや対応する外部字幕準備オブジェクトから、タイムスタンプ付きの SRT 字幕を出力する汎用プラグインの試作版です。初期の出力先として YouTube Studio を想定しています。
 
@@ -21,15 +21,15 @@ AviUtl2 の標準テキストや対応する外部字幕準備オブジェクト
 
 ## インストールと使用
 
-現行試作版では、ビルドで得た `SRTrackExporter.aux2` を、AviUtl2 のデータフォルダ内の `Plugin` フォルダへ配置し、AviUtl2 を再起動します。通常の場所は `C:\ProgramData\aviutl2\Plugin` です。データフォルダを別の場所に設定している場合はそちらを使用してください。完成時の配布名は `SRTrack.aux2` です。
+`build.cmd` で生成した `out\Plugin\SRTrack\SRTrack.aux2` を、AviUtl2 のデータフォルダ内の `Plugin\SRTrack` フォルダへ配置し、AviUtl2 を再起動します。通常の場所は `C:\ProgramData\aviutl2\Plugin\SRTrack` です。データフォルダを別の場所に設定している場合はそちらを使用してください。
 
-SRTrack Object の編集用字幕プレビューも使う場合、現行試作版で同時に生成される `SRTrackPreview.mod2` を `C:\ProgramData\aviutl2\Script\SRTrack` へ配置します。完成時の配布名は `SRTrack.mod2` です。これは日本語を含むパスの SRT を読み込むための補助モジュールです。
+SRTrack Object の編集用字幕プレビューも使う場合、`out\Script\SRTrack\SRTrack.obj2` と `SRTrack.mod2` を `C:\ProgramData\aviutl2\Script\SRTrack` へ配置します。`SRTrack.mod2` は日本語を含むパスの SRT を読み込むための補助モジュールです。
 
 「ファイル」→「エクスポート」→「SRTrack Exporter（試作版）」から実行します。レイヤー名は1行に1件入力します。カンマや空白は名前の一部です。Enter キーはレイヤー名欄では改行に使い、設定から先へ進むには「次へ」を押します。
 
 ## 設定と削除
 
-設定画面で「次へ」を押すと、現在の Windows ユーザーのレジストリ `HKEY_CURRENT_USER\Software\SRTrackExporter` に前回設定を保存します。保存できない場合は警告します。プラグインを削除するには AviUtl2 終了後に `.aux2` を削除してください。保存設定も不要な場合は、このレジストリキーを手動で削除できます。
+設定画面で「次へ」を押すと、現在の Windows ユーザーのレジストリ `HKEY_CURRENT_USER\Software\SRTrack` に前回設定を保存します。保存できない場合は警告します。プラグインを削除するには AviUtl2 終了後に `.aux2` を削除してください。保存設定も不要な場合は、このレジストリキーを手動で削除できます。
 
 ## ビルド
 
@@ -48,8 +48,8 @@ build.cmd
 - 動画を書き出した範囲は自動検出しません。先頭にオープニングを追加した場合は、その長さを正のオフセットとして入力できます。
 - 前回設定の再起動後の復元、および YouTube Studio への取り込みは未検証です。
 
-詳細は [仕様書](docs/specification.md) と [SDKの利用方針](docs/SDK_POLICY.md) を参照してください。
+詳細は [仕様書](exporter-specification.md) と [SDKの利用方針](sdk-policy.md) を参照してください。
 
 ## ライセンス
 
-このプラグインのコードは [MIT License](LICENSE) です。AviUtl2 SDK に由来する定義の表示や、その他の依存関係については [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を参照してください。
+このプラグインのコードは [MIT License](../../LICENSE) です。AviUtl2 SDK に由来する定義の表示や、その他の依存関係については [第三者の権利表記](../../THIRD_PARTY_NOTICES.md) を参照してください。

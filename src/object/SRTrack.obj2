@@ -58,9 +58,9 @@ local function parse_srt(bytes)
 end
 
 local function read_srt_bytes(path)
-    local ok, module = pcall(function() return obj.module("SRTrackPreview") end)
+    local ok, module = pcall(function() return obj.module("SRTrack") end)
     if not ok or not module or not module.read_utf8_file then
-        return nil, "SRTrackPreview.mod2 を読み込めません"
+        return nil, "SRTrack.mod2 を読み込めません"
     end
     local read_ok, bytes = pcall(module.read_utf8_file, path)
     if not read_ok then

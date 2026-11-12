@@ -10,7 +10,8 @@
 #include <string>
 #include <vector>
 #include "core.h"
-#include "third_party/aviutl2-sdk/plugin2.h"
+#include "../../third_party/aviutl2-sdk/plugin2.h"
+#include "importer.h"
 
 static HINSTANCE module_handle;
 struct Settings {
@@ -18,7 +19,7 @@ struct Settings {
  std::wstring numbers=L"", names=L"", offset=L"0", threshold=L"0", final_min=L"1";
 };
 static Settings settings;
-static constexpr wchar_t registry_key[]=L"Software\\SRTrackExporter";
+static constexpr wchar_t registry_key[]=L"Software\\SRTrack";
 
 static std::wstring read_string(HKEY k,const wchar_t* name,const std::wstring& fallback) {
  DWORD type=0,size=0;
@@ -119,6 +120,6 @@ static void export_subtitles(EDIT_SECTION* edit){
  if(!GetSaveFileNameW(&ofn))return;if(!write_file(path,output)){MessageBoxW(owner,L"ファイルの書き込みに失敗しました。",L"SRTrack Exporter",MB_ICONERROR);return;}
  std::wstring msg=L"出力しました。\n対象: "+std::to_wstring(captions.size())+L" 件\n字幕: "+std::to_wstring(shifted.size())+L" 件\n開始前のため除外: "+std::to_wstring(omitted)+L" 件\n警告: "+std::to_wstring(warnings)+L" 件\n\n"+path;MessageBoxW(owner,msg.c_str(),L"SRTrack Exporter",MB_OK);
 }
-BOOL WINAPI DllMain(HINSTANCE instance,DWORD reason,LPVOID){if(reason==DLL_PROCESS_ATTACH)module_handle=instance;return TRUE;}
-extern "C" __declspec(dllexport) COMMON_PLUGIN_TABLE* GetCommonPluginTable(){static COMMON_PLUGIN_TABLE t{L"SRTrack Exporter（試作版）",L"字幕を SRT に出力します"};return &t;}
-extern "C" __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE* host){load_settings();host->register_export_menu(L"SRTrack Exporter（試作版）",export_subtitles);}
+BOOL WINAPI DllMain(HINSTANCE instance,DWORD reason,LPVOID){if(reason==DLL_PROCESS_ATTACH){module_handle=instance;initialize_importer(instance);}return TRUE;}
+extern "C" __declspec(dllexport) COMMON_PLUGIN_TABLE* GetCommonPluginTable(){static COMMON_PLUGIN_TABLE t{L"SRTrack",L"SRT 字幕の出力と同名 SRT の取込を支援します"};return &t;}
+extern "C" __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE* host){load_settings();host->register_export_menu(L"SRTrack Exporter",export_subtitles);register_importer();}

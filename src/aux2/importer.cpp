@@ -4,7 +4,8 @@
 #include <cstring>
 #include <cwchar>
 
-#include "../srtrack-exporter/third_party/aviutl2-sdk/plugin2.h"
+#include "../../third_party/aviutl2-sdk/plugin2.h"
+#include "importer.h"
 
 namespace {
 
@@ -18,7 +19,7 @@ bool get_script_path(wchar_t* path, DWORD capacity) {
   if (length == 0 || length >= capacity) return false;
   wchar_t* slash = wcsrchr(path, L'\\');
   if (!slash) return false;
-  constexpr wchar_t script_name[] = L"SRTrackImporter.lua";
+  constexpr wchar_t script_name[] = L"SRTrack.lua";
   const size_t directory_length = static_cast<size_t>(slash - path + 1);
   if (directory_length + _countof(script_name) > capacity) return false;
   memcpy(path + directory_length, script_name, sizeof(script_name));
@@ -43,25 +44,12 @@ void register_handler_script() {
 
 }  // namespace
 
-BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID) {
-  if (reason == DLL_PROCESS_ATTACH) module_instance = instance;
-  return TRUE;
+void initialize_importer(HINSTANCE instance) {
+  module_instance = instance;
 }
 
-extern "C" __declspec(dllexport) COMMON_PLUGIN_TABLE* GetCommonPluginTable() {
-  static COMMON_PLUGIN_TABLE table{
-      L"SRTrack Importer（試作版）",
-      L"GCMZDrops2 を通じて同名 SRT を SRTrack Object として追加します"};
-  return &table;
-}
-
-extern "C" __declspec(dllexport) bool InitializePlugin(DWORD) {
-  register_handler_script();
-  return true;
-}
-
-extern "C" __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE*) {
-  // Try once more at the later registration stage in case plugin startup
-  // ordering delayed GCMZDrops2's module initialization.
+void register_importer() {
+  // This stage follows normal plugin loading, so GCMZDrops2 can expose its
+  // documented registration entry before SRTrack tries to use it.
   register_handler_script();
 }
