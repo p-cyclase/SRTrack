@@ -1,17 +1,85 @@
 # SRTrack
 
-AviUtl2 での SRT 字幕出力を支援するツールキットです。レンダリング済み動画を切り貼りして再編集する場合にも、元の字幕情報を引き継いで編集後の SRT を再構成できることを目指します。開発途中のプロジェクトで、Exporter、SRTrack Object、編集用 Preview モジュール、GCMZDrops2 連携の SRTrack Importer を収録しています。
+SRTrack は、AviUtl2 で編集後の動画に対応する SRT 字幕を出力するためのツールキットです。
 
-## ツール一覧
+最大の目的は、いったん書き出した動画を別プロジェクトで連結・切り抜き・速度変更しても、元の字幕本文とタイミングを引き継ぎ、編集結果に対応する SRT を再構成できるようにすることです。
 
-- [SRTrack Exporter](tools/srtrack-exporter/README.md)：タイムライン上の対応字幕オブジェクトから SRT 字幕を出力する試作プラグイン。対応環境、ビルド方法、現在の制約は各ツールの README を参照してください。
-- [SRTrack Object](tools/srtrack-object/README.md)：SRT と再生設定を保持するカスタムオブジェクトです。編集用の字幕プレビューは切り替え可能で、書き出し動画には反映されません。
-- [SRTrack Importer](tools/srtrack-importer/README.md)：GCMZDrops2 の公開ハンドラー API を通じて動画ドロップ時に同名 SRT を検出し、動画と SRTrack Object をグループ化して追加します。複数動画はファイル名順に同じ二層へ並べます。移動・分割・伸縮への追従は未実装です。
+## コア・コンセプト
 
-## 開発状況
+動画ファイルだけから、元の字幕を正確に復元することはできません。SRTrack は、動画と同時に出力された SRT を `SRTrack Object` として動画へ対応づけます。動画と字幕側 Object を一組として扱い、動画の編集結果を字幕の時間情報へ反映して、最終的に SRT を出力します。
 
-標準テキストからの字幕取得と SRT 出力、SRTrack Object の SRT 出力・編集用プレビュー・日本語パス読込・固定正速度への追従は AviUtl ExEdit2 2.1.13 で簡易確認済みです。SRTrack Object の `動画全長` を周期とするループは実装済みですが、実機検証は未完了です。SRTrack Importer は、エクスプローラーとメディアエクスプローラーからの単体・複数動画ドロップ、同名 SRT の検出、二層配置、ペアごとのグループ化、終端値の一致を簡易確認済みです。いずれも厳密な網羅テストではありません。移動・分割・伸縮への自動追従は未実装です。バイナリは収録していません。
+SRTrack Object は字幕を動画へ焼き込むための Object ではありません。対応する動画の字幕情報を保持する「字幕側の相方」です。編集用字幕プレビューは補助機能であり、書き出し動画には反映されません。
+
+## 構成
+
+開発上の責務は、次の4つに分けます。
+
+| 構成要素 | 役割 | 状態 |
+| --- | --- | --- |
+| Exporter | タイムライン上の字幕ソースを集め、SRT を出力する | 実装済み |
+| Importer | 動画ドロップ時に同名 SRT を検出し、動画と SRTrack Object を生成・グループ化する | 実装済み |
+| Monitor | 動画 Object の編集結果を読み取り、SRTrack Object の再生値へ反映する | 設計予定 |
+| Object | SRT ファイルと再生情報を保持し、編集用字幕プレビューを提供する | 一部実装済み |
+
+最終配布では、論理上は区別したまま、次の4ファイルにまとめます。
+
+```text
+SRTrack.aux2
+├─ Exporter
+├─ Importer
+└─ Monitor
+
+SRTrack.lua
+└─ GCMZDrops2 用の Importer ハンドラスクリプト
+
+SRTrack.obj2
+└─ SRT の参照・時間情報を保持するカスタム Object
+
+SRTrack.mod2
+└─ Object の字幕プレビュー用補助モジュール
+```
+
+現行リポジトリの `SRTrackExporter.aux2`、`SRTrackImporter.aux2`、`SRTrackImporter.lua`、`SRTrack Object.obj2`、`SRTrackPreview.mod2` は、統合前の開発中ファイル名です。完成時には上記の配布名へ統一します。
+
+## 基本的な利用の流れ
+
+1. AviUtl2 プロジェクト内の標準テキストなどから、Exporter で SRT を出力する。
+2. 書き出した動画と同名の SRT を同じフォルダへ置く。
+3. 動画をタイムラインへドロップする。
+4. Importer が同名 SRT を見つけた場合、動画と SRTrack Object を同時に配置・グループ化する。
+5. 編集後、Exporter でタイムライン全体の字幕を SRT として出力する。
+
+同名 SRT がない動画は通常どおり配置され、通知は表示しません。
+
+## SRTrack Object
+
+SRTrack Object は、SRT ファイル、再生位置 `P`、再生範囲終端 `E`、動画全長 `D`、再生速度、ループ再生、編集用字幕プレビューを持ちます。
+
+`D` は元動画の全長であり、移動・分割・伸縮によって変化させません。ループ再生時だけ、SRT 元時刻を戻す周期として使います。編集用字幕プレビューのループは簡易確認済みです。ループ時の Exporter 出力は未確認です。
+
+## Importer と Monitor
+
+Importer は GCMZDrops2 の公開ハンドラー API を利用します。同名 SRT がある場合、動画 Object の直上に SRTrack Object を置き、両者をグループ化します。複数動画を同時にドロップした場合は、ファイル名順に同じ二層へ並べ、動画ごとに別のグループを作成します。
+
+Monitor は今後実装する常駐コンポーネントです。グループ化された動画 Object の再生位置、再生範囲終端、再生速度などを確認し、SRTrack Object の対応する値へ反映します。これにより、移動・分割・伸縮などの操作後も動画と字幕の時間関係を維持することを目指します。Object 側で標準動画の編集アルゴリズムを独自に再実装する方針は採りません。
+
+## 動作確認状況
+
+AviUtl2 2.1.13 で、開発者による概略確認を行っています。
+
+- 標準テキストおよび SRTrack Object からの SRT 出力
+- 日本語を含むパスの SRT 読み込み
+- 編集用字幕プレビューと、そのループ
+- 同名 SRT の検出、動画と Object の二層配置・グループ化
+- エクスプローラーおよび AviUtl2 内メディアエクスプローラーからの動画追加
+- 複数動画のファイル名順配置と、動画・Object の初期終端値の一致
+
+これは網羅的な受け入れ試験ではありません。Monitor による継続同期と、ループ時の Exporter 出力は今後の検証対象です。
+
+## 前提プラグイン
+
+Importer を使う場合は GCMZDrops2 と L-SMASH Works が必要です。いずれも SRTrack には同梱しません。SRTrack は GCMZDrops2 の公開 API のみを利用し、AviUtl2 標準 Object 以外の外部ファイルやプラグインのリバースエンジニアリングは行いません。
 
 ## ライセンス
 
-SRTrack Exporter、SRTrack Object、SRTrackPreview、SRTrack Importer のコードは [MIT License](tools/srtrack-exporter/LICENSE) です。SRTrack Importer は GCMZDrops2 と L-SMASH Works を前提プラグインとして想定しますが、いずれも同梱しません。同梱 SDK とその他の依存関係については [第三者の権利表記](tools/srtrack-exporter/THIRD_PARTY_NOTICES.md) を参照してください。
+SRTrack のコードは [MIT License](tools/srtrack-exporter/LICENSE) です。AviUtl2 SDK および第三者コンポーネントについては、[第三者の権利表記](tools/srtrack-exporter/THIRD_PARTY_NOTICES.md) を参照してください。

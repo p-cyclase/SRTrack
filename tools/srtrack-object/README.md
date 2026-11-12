@@ -1,5 +1,7 @@
 # SRTrack Object for AviUtl2
 
+> このディレクトリは統合前の Object 実装を置く開発用の場所です。完成時の配布名は `SRTrack.obj2` と `SRTrack.mod2` です。
+
 SRTrack Object は、レンダリング済み動画に対応する SRT の参照と時間変換設定を保持するカスタムオブジェクトです。SRTrack Exporter が読み取る字幕ソースとして使います。必要なら、編集画面だけで現在の SRT 字幕を確認する補助プレビューを表示できます。
 
 ## インストール
@@ -9,7 +11,7 @@ SRTrack Object は、レンダリング済み動画に対応する SRT の参照
 - `SRTrack Object.obj2` → `C:\ProgramData\aviutl2\Script\SRTrack\SRTrack Object.obj2`
 - `SRTrackPreview.mod2` → `C:\ProgramData\aviutl2\Script\SRTrack\SRTrackPreview.mod2`
 
-`SRTrackPreview.mod2` は、Unicode を含む SRT パスを読み込む編集用プレビューの補助モジュールです。Exporter を使わない場合も、プレビューを使うなら必要です。
+上記は現行試作版の導入名です。完成時は `SRTrack.obj2` と `SRTrack.mod2` に統一します。`SRTrack.mod2` は、Unicode を含む SRT パスを読み込む編集用プレビューの補助モジュールです。Exporter を使わない場合も、プレビューを使うなら必要です。
 
 ## 設定項目
 
@@ -23,7 +25,7 @@ SRTrack Object は、レンダリング済み動画に対応する SRT の参照
 
 `再生位置` と `再生範囲終端` は Lua のトラックグループとして一組に表示する。標準動画と同じく、開始・終端を並べて確認できる二値 UI とする。
 
-タイムライン上の Object 名を SRT ファイル名へ自動変更する機能は、現行の Lua Object 単体には設定 API がないため未実装である。ファイル未指定時を含め、現行名は `SRTrack Object` のままとする。
+現行の Lua Object 単体では、タイムライン上の Object 名を設定しない。完成時は `SRTrack.aux2` の Importer が生成した Object の名前を、対応する SRT ファイル名へ設定する。手動配置でファイル未指定の場合は `SRTrack Object` のままとする。
 
 ## 編集用字幕プレビュー
 
@@ -37,9 +39,9 @@ SRT を Lua 側で読めない、SRT ファイルが未指定、再生速度が�
 
 `再生位置`、`再生範囲終端`、`動画全長`、`再生速度`は、対応する動画との同期を前提に Importer が初期設定する値です。AviUtl2 上では手動変更できますが、動画との対応が崩れ、字幕出力や将来のループ結果が正しくなくなる可能性があります。手動変更は非推奨です。変更を強制的に禁止したり、自動で元に戻したりはしません。
 
-手動変更されたかどうかを記録・判定することはありません。移動・分割・伸縮への追従自体は未実装です。将来は、グループ内の標準動画で本体が更新した `P`・`E`・再生速度を Object へ反映する方式を検討しています。ただし、取込処理と継続同期を同じプラグイン単位に置く場合の名称・責務を見直すまで、この実装は保留です。
+手動変更されたかどうかを記録・判定することはありません。移動・分割・伸縮への追従自体は未実装です。将来は `SRTrack.aux2` 内の Monitor が、グループ内の標準動画で本体が更新した `P`・`E`・再生速度を Object へ反映します。Importer は初期配置、Monitor は継続同期を担当します。
 
-SRTrack Importer は、GCMZDrops2 の公開ハンドラースクリプト API を通じて、同名 SRT を参照する Object を対応動画とグループ化して追加し、動画と同一のフレーム境界終端を `再生範囲終端` と `動画全長` に初期設定します。分割・伸縮後に標準動画の更新結果を Object へ反映する継続同期は、コンポーネントの名称・責務を再定義するまで未実装です。
+Importer は、GCMZDrops2 の公開ハンドラースクリプト API を通じて、同名 SRT を参照する Object を対応動画とグループ化して追加し、動画と同一のフレーム境界終端を `再生範囲終端` と `動画全長` に初期設定します。分割・伸縮後に標準動画の更新結果を Object へ反映する継続同期は Monitor の責務であり、未実装です。
 
 ## ループ再生
 
@@ -47,4 +49,4 @@ SRT の最終字幕時刻は元動画の長さではないため、ループ周�
 
 ## ライセンス
 
-SRTrack Object と編集用の `SRTrackPreview.mod2` は、SRTrack Exporter と同じ [MIT License](../srtrack-exporter/LICENSE) です。
+SRTrack Object と編集用の `SRTrack.mod2`（現行開発名 `SRTrackPreview.mod2`）は、SRTrack Exporter と同じ [MIT License](../srtrack-exporter/LICENSE) です。

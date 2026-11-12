@@ -1,5 +1,7 @@
 # SRTrack Exporter for AviUtl2
 
+> このディレクトリは統合前の Exporter 実装を置く開発用の場所です。完成時は Importer・Monitor とともに `SRTrack.aux2` へ収録します。
+
 AviUtl2 の標準テキストや対応する外部字幕準備オブジェクトから、タイムスタンプ付きの SRT 字幕を出力する汎用プラグインの試作版です。初期の出力先として YouTube Studio を想定しています。
 
 **開発中**：AviUtl2 2.1.13 を対象としています。標準テキスト、SRTrack Object の字幕取得と SRT 出力、編集用プレビューは同バージョンで簡易確認済みです。SRTrack Object のループ出力は実装済みですが、実機検証は未完了です。外部字幕準備オブジェクト、レイヤー指定、オフセット、設定保存を含む網羅検証と SDK 互換性は未完了です。テスト用プロジェクトで使用し、出力した字幕を確認してください。
@@ -19,9 +21,9 @@ AviUtl2 の標準テキストや対応する外部字幕準備オブジェクト
 
 ## インストールと使用
 
-ビルドで得た `SRTrackExporter.aux2` を、AviUtl2 のデータフォルダ内の `Plugin` フォルダへ配置し、AviUtl2 を再起動します。通常の場所は `C:\ProgramData\aviutl2\Plugin` です。データフォルダを別の場所に設定している場合はそちらを使用してください。
+現行試作版では、ビルドで得た `SRTrackExporter.aux2` を、AviUtl2 のデータフォルダ内の `Plugin` フォルダへ配置し、AviUtl2 を再起動します。通常の場所は `C:\ProgramData\aviutl2\Plugin` です。データフォルダを別の場所に設定している場合はそちらを使用してください。完成時の配布名は `SRTrack.aux2` です。
 
-SRTrack Object の編集用字幕プレビューも使う場合、同時に生成される `SRTrackPreview.mod2` を `C:\ProgramData\aviutl2\Script\SRTrack` へ配置します。これは日本語を含むパスの SRT を読み込むための補助モジュールです。
+SRTrack Object の編集用字幕プレビューも使う場合、現行試作版で同時に生成される `SRTrackPreview.mod2` を `C:\ProgramData\aviutl2\Script\SRTrack` へ配置します。完成時の配布名は `SRTrack.mod2` です。これは日本語を含むパスの SRT を読み込むための補助モジュールです。
 
 「ファイル」→「エクスポート」→「SRTrack Exporter（試作版）」から実行します。レイヤー名は1行に1件入力します。カンマや空白は名前の一部です。Enter キーはレイヤー名欄では改行に使い、設定から先へ進むには「次へ」を押します。
 
