@@ -9,9 +9,6 @@ License reference (unofficial SDK mirror): https://github.com/oov/aviutl2_plugin
 
 The plugin and Preview module use the official headers rather than handwritten interface declarations. The SDK date alone does not establish incompatibility. Standard-text subtitle extraction, SRT output, and basic Preview-module operation have been verified with AviUtl2 2.1.13; compatibility of the full feature set remains unverified. See [SDK policy](docs/SDK_POLICY.md).
 
-## PSDToolKit
-
-The plugin optionally reads objects created by PSDToolKit. It does not bundle PSDToolKit or its source code. Obtain it from its own distributor and review its terms separately: https://github.com/oov/aviutl2_psdtoolkit2
 
 ## Microsoft tools and runtime
 
