@@ -12,7 +12,7 @@ GCMZDrops2、L-SMASH Works、SRTrack Object、SRTrackPreview を導入した環�
 
 `SRTrackImporter.aux2` は、GCMZDrops2 が公開している `AddHandlerScriptFile` だけを使い、同じ SRTrack フォルダ内の Lua ファイルを起動時に登録します。GCMZDrops2 が導入・有効化されていない場合は、通常の動画ドロップに介入しません。
 
-対象は、L-SMASH Works で一般に扱われる動画コンテナと `.avi` です。実際に動画トラックを持つことを GCMZDrops2 の公開メディア情報 API で確認してから Object を追加します。L-SMASH Works 側で独自に追加した拡張子は、初期版の候補一覧には含まれない場合があります。
+固定の対応拡張子一覧は持ちません。同名 SRT があるファイルについて、GCMZDrops2 の公開メディア情報 API が動画トラックを取得できた場合だけ Object を追加します。そのため、対応範囲は導入済みの L-SMASH Works と標準 AVI 読込が実際に扱える動画形式に従います。
 
 ## ライセンス
 

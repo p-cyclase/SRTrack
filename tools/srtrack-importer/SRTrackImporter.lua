@@ -8,15 +8,6 @@ local M = {
   priority = 1000,
 }
 
--- The initial target is the usual L-SMASH Works video container set plus AVI.
--- A candidate is also required to contain a video track before it is changed.
-local video_extensions = {
-  avi = true, mp4 = true, m4v = true, mov = true, qt = true,
-  ['3gp'] = true, ['3g2'] = true, f4v = true, ismv = true, ism = true,
-  mkv = true, webm = true, wmv = true, asf = true, flv = true,
-  mpg = true, mpeg = true, m2ts = true, mts = true, ts = true,
-}
-
 local function extension(path)
   local ext = path:match("%.([^./\\]+)$")
   return ext and ext:lower() or nil
@@ -140,7 +131,12 @@ end
 function M.drag_enter(files, state)
   for _, file in ipairs(files) do
     local ext = extension(file.filepath)
-    if ext and video_extensions[ext] then return true end
+    -- Do not maintain a second extension list.  When a same-name SRT exists,
+    -- defer format support to the installed L-SMASH Works reader (or AVI
+    -- reader) and verify the actual video track in drop().
+    if ext and ext ~= "srt" and file_exists(sibling_srt(file.filepath)) then
+      return true
+    end
   end
   return false
 end
@@ -159,7 +155,7 @@ function M.drop(files, state)
   for index = #files, 1, -1 do
     local file = files[index]
     local ext = extension(file.filepath)
-    if ext and video_extensions[ext] then
+    if ext and ext ~= "srt" then
       local srt_path = sibling_srt(file.filepath)
       if file_exists(srt_path) then
         local info, err = gcmz.get_media_info(file.filepath)
