@@ -40,6 +40,10 @@ int main() {
   auto mapped=map_srt_to_scene(source,10000,14000,1000,2.0);
   assert(mapped.size()==2 && mapped[0].start==10000 && mapped[0].end==11000);
   assert(mapped[1].start==12000 && mapped[1].end==12500);
+  auto looped=map_looped_srt_to_scene({{1000,2000,"A",0},{4000,5000,"B",1}},10000,22000,4000,5000,1.0);
+  assert(looped.size()==5 && looped[0].start==10000 && looped[0].end==11000 && looped[0].text=="B");
+  assert(looped[1].start==12000 && looped[1].end==13000 && looped[1].text=="A");
+  assert(looped[4].start==20000 && looped[4].end==21000 && looped[4].text=="B");
   assert(parse_srt("1\n00:00:00,000 --> 00:00:00,000\n不正\n",&rejected).empty() && rejected==1);
   auto integrated=integrate_timeline({{0,5000,"A",true},{2000,3000,"X",false},{5000,8000,"B",true}});
   assert(integrated.size()==3 && integrated[0].text=="A" && integrated[0].end==2000);

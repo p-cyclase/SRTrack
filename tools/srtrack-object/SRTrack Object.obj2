@@ -3,8 +3,10 @@
 --file@file:SRT ファイル
 --track@position:再生位置,0,86400,0,0.001
 --track@end_position:再生範囲終端,0,86400,86400,0.001
+--trackgroup@position,end_position:再生位置
 --track@source_duration:動画全長,0,86400,0,0.001
 --track@speed:再生速度,0.01,1000,100,0.01
+--check@loop:ループ再生,false
 --check@preview:字幕プレビュー,true
 
 -- SRTrack Object keeps SRT timing metadata for SRTrack Exporter.
@@ -119,7 +121,16 @@ else
             draw_preview("[SRTrack] 有効な SRT 字幕が見つかりません", 0xff8080, 0x400000)
         else
             local source_time = position * 1000 + (speed / 100) * obj.time * 1000
-            local text = source_time < end_position * 1000 and preview_text(captions, source_time) or ""
+            local in_range = source_time < end_position * 1000
+            if loop then
+                if not source_duration or source_duration <= 0 then
+                    draw_preview("[SRTrack] ループ再生には動画全長が必要です", 0xff8080, 0x400000)
+                    return
+                end
+                source_time = source_time % (source_duration * 1000)
+                in_range = true
+            end
+            local text = in_range and preview_text(captions, source_time) or ""
             if text == "" then
                 clear_preview()
             else

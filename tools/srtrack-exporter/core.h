@@ -101,6 +101,40 @@ inline std::vector<TimedBlock> map_srt_to_scene(const std::vector<SrtCaption>& c
     return out;
 }
 
+// Map a looping source whose original video duration is the repeat period.
+// The source starts at source_start, advances at speed, then wraps to zero
+// whenever it reaches source_duration.  The current non-looping range end is
+// intentionally not used: D is the loop period retained by SRTrack Object.
+inline std::vector<TimedBlock> map_looped_srt_to_scene(const std::vector<SrtCaption>& captions,
+                                                        int64_t object_start, int64_t object_end,
+                                                        int64_t source_start, int64_t source_duration,
+                                                        double speed) {
+    std::vector<TimedBlock> out;
+    if (object_end <= object_start || source_duration <= 0 || speed <= 0) return out;
+    const int64_t source_end = source_start + static_cast<int64_t>(std::llround(speed * (object_end - object_start)));
+    for (const auto& caption : captions) {
+        int64_t cycle = (source_start - caption.end) / source_duration;
+        if (source_start - caption.end < 0 && (source_start - caption.end) % source_duration) --cycle;
+        for (;; ++cycle) {
+            const int64_t left_source = caption.start + cycle * source_duration;
+            const int64_t right_source = caption.end + cycle * source_duration;
+            if (left_source >= source_end) break;
+            const int64_t left = std::max(left_source, source_start);
+            const int64_t right = std::min(right_source, source_end);
+            if (right <= left) continue;
+            int64_t start = object_start + static_cast<int64_t>(std::llround((left - source_start) / speed));
+            int64_t end = object_start + static_cast<int64_t>(std::llround((right - source_start) / speed));
+            start = std::max(start, object_start);
+            end = std::min(end, object_end);
+            if (end > start) out.push_back({start, end, caption.text});
+        }
+    }
+    std::stable_sort(out.begin(), out.end(), [](const TimedBlock& left, const TimedBlock& right) {
+        return left.start < right.start;
+    });
+    return out;
+}
+
 inline std::vector<TimedBlock> integrate_timeline(std::vector<SourceTimedCaption> captions) {
     std::stable_sort(captions.begin(), captions.end(), [](const SourceTimedCaption& a, const SourceTimedCaption& b) {
         return a.start < b.start;
