@@ -2,6 +2,8 @@
 --information:SRTrack Object 0.4 by p_cyclase
 --file@file:SRT ファイル
 --track@position:再生位置,0,86400,0,0.001
+--track@end_position:再生範囲終端,0,86400,86400,0.001
+--track@source_duration:動画全長,0,86400,0,0.001
 --track@speed:再生速度,0.01,1000,100,0.01
 --check@preview:字幕プレビュー,true
 
@@ -116,7 +118,8 @@ else
         if #captions == 0 and bytes ~= "" then
             draw_preview("[SRTrack] 有効な SRT 字幕が見つかりません", 0xff8080, 0x400000)
         else
-            local text = preview_text(captions, position * 1000 + (speed / 100) * obj.time * 1000)
+            local source_time = position * 1000 + (speed / 100) * obj.time * 1000
+            local text = source_time < end_position * 1000 and preview_text(captions, source_time) or ""
             if text == "" then
                 clear_preview()
             else

@@ -1,6 +1,6 @@
 # SRTrack 全体仕様書
 
-SRTrack は、AviUtl ExEdit2 上で字幕を扱い、編集後のタイムラインに対応する SRT を出力するためのツールキットである。本仕様書は、SRTrack Exporter、SRTrack Object、編集用 Preview モジュール、および GCMZDrops2 連携として新設予定の SRTrack Importer を共通の目的に沿って整理する。
+SRTrack は、AviUtl ExEdit2 上で字幕を扱い、編集後のタイムラインに対応する SRT を出力するためのツールキットである。本仕様書は、SRTrack Exporter、SRTrack Object、編集用 Preview モジュール、および GCMZDrops2 連携の SRTrack Importer を共通の目的に沿って整理する。
 
 ## コア・コンセプト
 
@@ -44,9 +44,9 @@ SRTrack では、動画ファイルと SRTrack Object を一組として作成�
 | SRTrack Object | SRT の参照・再生設定と、編集用の非出力字幕プレビューを実装済み。簡易実機確認済み。 |
 | SRTrack Object からの出力 | SRT 解析・固定正速度での時間変換を実装済み。簡易実機確認済み。 |
 | 字幕プレビュー | SRTrack Object 単体の編集用プレビューと読込失敗表示を実装済み。Exporter 統合結果との一致は対象外。 |
-| SRTrack Importer | 構想・仕様化済み。未実装。 |
+| SRTrack Importer | 同名 SRT の検出、一時 Object の追加、`P`・`E`・`D`・速度の初期化を実装済み。実機連携は未検証。 |
 
-上記の実機確認は開発者による概略確認であり、網羅的な受け入れ試験ではない。SRTrack Importer、動画との自動ペアリング、移動・分割・伸縮への自動追従、ループは未実装である。
+上記の実機確認は開発者による概略確認であり、網羅的な受け入れ試験ではない。SRTrack Importer の GCMZDrops2 経由の実機連携、動画とのグループ化、移動・分割・伸縮への自動追従、ループは未検証または未実装である。
 
 ## 初期版の到達点
 
