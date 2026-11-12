@@ -12,6 +12,7 @@
 #include "core.h"
 #include "../../third_party/aviutl2-sdk/plugin2.h"
 #include "importer.h"
+#include "monitor.h"
 
 static HINSTANCE module_handle;
 struct Settings {
@@ -104,10 +105,10 @@ static void export_subtitles(EDIT_SECTION* edit){
  if(!missing.empty()){std::wstring message=L"次のレイヤー名が見つかりませんでした。\n";for(const auto& n:missing)message+=L"・"+n+L"\n";message+=L"\n見つかった対象で続行しますか？";if(MessageBoxW(owner,message.c_str(),L"SRTrack Exporter",MB_YESNO|MB_ICONWARNING)!=IDYES)return;}
  std::vector<Caption> captions;std::vector<TimedBlock> srt_blocks;int warnings=0;
  for(int layer:layers){int pos=0;while(pos<=edit->info->frame_max){auto obj=edit->find_object(layer,pos);if(!obj)break;auto loc=edit->get_object_layer_frame(obj);if(loc.layer!=layer||loc.end<pos||loc.end==INT_MAX){++warnings;break;}
-  const wchar_t* effect=nullptr;bool isdialogue=edit->count_object_effect(obj,L"セリフ準備@PSDToolKit")>0;bool issrtrack=edit->count_object_effect(obj,L"SRTrack Object")>0;
+  const wchar_t* effect=nullptr;bool isdialogue=edit->count_object_effect(obj,L"セリフ準備@PSDToolKit")>0;const wchar_t* srtrack_effect=edit->count_object_effect(obj,L"SRTrack")>0?L"SRTrack":(edit->count_object_effect(obj,L"SRTrack Object")>0?L"SRTrack Object":nullptr);bool issrtrack=srtrack_effect!=nullptr;
   if(isdialogue){if(settings.dialogue)effect=L"セリフ準備@PSDToolKit";}else if(settings.text&&edit->count_object_effect(obj,L"テキスト")>0)effect=L"テキスト";
   if(effect){const char* raw=edit->get_object_item_value(obj,effect,L"テキスト");if(!raw)++warnings;else{std::string text=decode_value(raw);if(text.find('<')!=std::string::npos||text.find("\n\n")!=std::string::npos)++warnings;if(!empty_text(text))captions.push_back({layer,loc.start,loc.end+1,text});}}
-  if(issrtrack&&settings.srtrack){const char* file_raw=edit->get_object_item_value(obj,L"SRTrack Object",L"SRT ファイル");const char* position_raw=edit->get_object_item_value(obj,L"SRTrack Object",L"再生位置");const char* end_raw=edit->get_object_item_value(obj,L"SRTrack Object",L"再生範囲終端");const char* duration_raw=edit->get_object_item_value(obj,L"SRTrack Object",L"動画全長");const char* speed_raw=edit->get_object_item_value(obj,L"SRTrack Object",L"再生速度");const char* loop_raw=edit->get_object_item_value(obj,L"SRTrack Object",L"ループ再生");std::wstring file;double position=0,end_position=0,source_duration=0,speed_percent=0;bool loop=false;
+  if(issrtrack&&settings.srtrack){const char* file_raw=edit->get_object_item_value(obj,srtrack_effect,L"SRT ファイル");const char* position_raw=edit->get_object_item_value(obj,srtrack_effect,L"再生位置");const char* end_raw=edit->get_object_item_value(obj,srtrack_effect,L"再生範囲終端");const char* duration_raw=edit->get_object_item_value(obj,srtrack_effect,L"動画全長");const char* speed_raw=edit->get_object_item_value(obj,srtrack_effect,L"再生速度");const char* loop_raw=edit->get_object_item_value(obj,srtrack_effect,L"ループ再生");std::wstring file;double position=0,end_position=0,source_duration=0,speed_percent=0;bool loop=false;
    if(!file_raw||!position_raw||!end_raw||!duration_raw||!speed_raw||!loop_raw||!utf8_to_wide(decode_value(file_raw),file)||file.empty()||!parse_number(decode_value(position_raw),position)||!parse_number(decode_value(end_raw),end_position)||!parse_number(decode_value(duration_raw),source_duration)||!parse_number(decode_value(speed_raw),speed_percent)||!parse_check(decode_value(loop_raw),loop)||position<0||end_position<=position||speed_percent<=0||(loop&&source_duration<=0)){++warnings;}
    else {std::string bytes;if(!read_file(file.c_str(),bytes)){++warnings;}else{size_t rejected=0;auto parsed=parse_srt(bytes,&rejected);if(rejected)++warnings;const int64_t scene_start=frame_milliseconds(loc.start,edit->info->rate,edit->info->scale);const int64_t scene_end=frame_milliseconds(loc.end+1,edit->info->rate,edit->info->scale);std::vector<TimedBlock> mapped;if(loop)mapped=map_looped_srt_to_scene(parsed,scene_start,scene_end,int64_t(std::llround(position*1000)),int64_t(std::llround(source_duration*1000)),speed_percent/100);else{const int64_t range_end=scene_start+int64_t(std::llround((end_position-position)*1000/(speed_percent/100)));mapped=map_srt_to_scene(parsed,scene_start,std::min(scene_end,range_end),int64_t(std::llround(position*1000)),speed_percent/100);}srt_blocks.insert(srt_blocks.end(),mapped.begin(),mapped.end());}}}
   pos=loc.end+1;}}
@@ -120,6 +121,6 @@ static void export_subtitles(EDIT_SECTION* edit){
  if(!GetSaveFileNameW(&ofn))return;if(!write_file(path,output)){MessageBoxW(owner,L"ファイルの書き込みに失敗しました。",L"SRTrack Exporter",MB_ICONERROR);return;}
  std::wstring msg=L"出力しました。\n対象: "+std::to_wstring(captions.size())+L" 件\n字幕: "+std::to_wstring(shifted.size())+L" 件\n開始前のため除外: "+std::to_wstring(omitted)+L" 件\n警告: "+std::to_wstring(warnings)+L" 件\n\n"+path;MessageBoxW(owner,msg.c_str(),L"SRTrack Exporter",MB_OK);
 }
-BOOL WINAPI DllMain(HINSTANCE instance,DWORD reason,LPVOID){if(reason==DLL_PROCESS_ATTACH){module_handle=instance;initialize_importer(instance);}return TRUE;}
+BOOL WINAPI DllMain(HINSTANCE instance,DWORD reason,LPVOID){if(reason==DLL_PROCESS_ATTACH){module_handle=instance;initialize_importer(instance);initialize_monitor(instance);}return TRUE;}
 extern "C" __declspec(dllexport) COMMON_PLUGIN_TABLE* GetCommonPluginTable(){static COMMON_PLUGIN_TABLE t{L"SRTrack",L"SRT 字幕の出力と同名 SRT の取込を支援します"};return &t;}
-extern "C" __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE* host){load_settings();host->register_export_menu(L"SRTrack Exporter",export_subtitles);register_importer();}
+extern "C" __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE* host){load_settings();host->register_export_menu(L"SRTrack Exporter",export_subtitles);register_importer();register_monitor(host);}

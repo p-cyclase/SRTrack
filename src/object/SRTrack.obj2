@@ -7,6 +7,7 @@
 --track@source_duration:動画全長,0,86400,0,0.001
 --track@speed:再生速度,0.01,1000,100,0.01
 --check@loop:ループ再生,false
+--check@monitor:動画同期,false
 --check@preview:字幕プレビュー,true
 
 -- SRTrack Object keeps SRT timing metadata for SRTrack Exporter.

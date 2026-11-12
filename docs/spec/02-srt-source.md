@@ -50,7 +50,7 @@ SRTrack Object は、対応するレンダリング済み動画の字幕側の�
 
 内部では再生開始位置を `P`、再生範囲終端を `E` と区別する。現行 UI では Lua のトラックグループで両者を一組に表示し、標準動画と同様に開始・終端を並べて扱う。再生速度も標準動画と同じ百分率表示に合わせる。
 
-タイムライン上の Object 名は現行 Lua Object の固定名 `SRTrack Object` である。完成時は `SRTrack.aux2` 側で、Importer が生成した Object の名前を対応する SRT ファイル名へ設定する。Lua Object 単体ではこの名前を設定しない。手動配置で SRT が未指定の場合は標準名のままとする。
+タイムライン上の Object 名は現行 Lua Object の標準名 `SRTrack` である。`SRTrack.aux2` 側で、Importer が生成した Object の名前を対応する SRT ファイル名へ設定する。Lua Object 単体ではこの名前を設定しない。手動配置で SRT が未指定の場合は標準名のままとする。
 
 
 ## 2.4 SRT の入力形式
