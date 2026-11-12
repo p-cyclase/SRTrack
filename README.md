@@ -6,12 +6,12 @@ AviUtl2 での SRT 字幕出力を支援するツールキットです。レン�
 
 - [SRTrack Exporter](tools/srtrack-exporter/README.md)：タイムライン上の対応字幕オブジェクトから SRT 字幕を出力する試作プラグイン。対応環境、ビルド方法、現在の制約は各ツールの README を参照してください。
 - [SRTrack Object](tools/srtrack-object/README.md)：SRT と再生設定を保持するカスタムオブジェクトです。編集用の字幕プレビューは切り替え可能で、書き出し動画には反映されません。
-- [SRTrack Importer](tools/srtrack-importer/README.md)：GCMZDrops2 の公開ハンドラー API を通じて動画ドロップ時に同名 SRT を検出し、動画と SRTrack Object をグループ化して追加します。動画の総時間から参照範囲終端を初期化します。移動・分割・伸縮への追従は未実装です。
+- [SRTrack Importer](tools/srtrack-importer/README.md)：GCMZDrops2 の公開ハンドラー API を通じて動画ドロップ時に同名 SRT を検出し、動画と SRTrack Object をグループ化して追加します。複数動画はファイル名順に同じ二層へ並べます。移動・分割・伸縮への追従は未実装です。
 
 ## 開発状況
 
-標準テキストからの字幕取得と SRT 出力、SRTrack Object の SRT 出力・編集用プレビュー・日本語パス読込・固定正速度への追従は AviUtl ExEdit2 2.1.13 で簡易確認済みです。厳密な網羅テストではありません。SRTrack Importer は初期実装済みですが、グループ化を含む GCMZDrops2 経由の実機検証は未完了です。移動・分割・伸縮への自動追従とループは未実装です。分割・伸縮時の Object 側の追従は実装・検証を保留しています。バイナリは収録していません。
+標準テキストからの字幕取得と SRT 出力、SRTrack Object の SRT 出力・編集用プレビュー・日本語パス読込・固定正速度への追従は AviUtl ExEdit2 2.1.13 で簡易確認済みです。SRTrack Importer は、エクスプローラーとメディアエクスプローラーからの単体・複数動画ドロップ、同名 SRT の検出、二層配置、ペアごとのグループ化、終端値の一致を簡易確認済みです。いずれも厳密な網羅テストではありません。移動・分割・伸縮への自動追従とループは未実装です。バイナリは収録していません。
 
 ## ライセンス
 
-SRTrack Exporter、SRTrack Object、SRTrackPreview のコードは [MIT License](tools/srtrack-exporter/LICENSE) です。SRTrack Importer は GCMZDrops2 と L-SMASH Works を前提プラグインとして想定しますが、いずれも同梱しません。同梱 SDK とその他の依存関係については [第三者の権利表記](tools/srtrack-exporter/THIRD_PARTY_NOTICES.md) を参照してください。
+SRTrack Exporter、SRTrack Object、SRTrackPreview、SRTrack Importer のコードは [MIT License](tools/srtrack-exporter/LICENSE) です。SRTrack Importer は GCMZDrops2 と L-SMASH Works を前提プラグインとして想定しますが、いずれも同梱しません。同梱 SDK とその他の依存関係については [第三者の権利表記](tools/srtrack-exporter/THIRD_PARTY_NOTICES.md) を参照してください。
