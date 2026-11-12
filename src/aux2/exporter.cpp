@@ -15,6 +15,7 @@
 #include "monitor.h"
 
 static HINSTANCE module_handle;
+static EDIT_HANDLE* export_edit_handle;
 struct Settings {
  bool all=true, text=true, dialogue=true, srtrack=true;
  std::wstring numbers=L"", names=L"", offset=L"0", threshold=L"0", final_min=L"1";
@@ -90,8 +91,20 @@ static INT_PTR CALLBACK dialog(HWND h,UINT msg,WPARAM w,LPARAM) {
 static std::string decode_value(const char* raw){std::string out;for(size_t i=0;raw[i];++i){if(raw[i]=='\\'&&raw[i+1]){char n=raw[i+1];if(n=='n'){out+='\n';++i;continue;}if(n=='r'){++i;continue;}if(n=='\\'){out+='\\';++i;continue;}}out+=raw[i];}return out;}
 static bool empty_text(const std::string& s){return s.find_first_not_of(" \t\r\n")==std::string::npos;}
 static bool write_file(const wchar_t* path,const std::string& bytes){HANDLE f=CreateFileW(path,GENERIC_WRITE,0,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);if(f==INVALID_HANDLE_VALUE)return false;DWORD n=0;bool ok=bytes.size()<=MAXDWORD&&WriteFile(f,bytes.data(),DWORD(bytes.size()),&n,nullptr)&&n==bytes.size();if(!CloseHandle(f))ok=false;return ok;}
-static bool read_file(const wchar_t* path,std::string& bytes){HANDLE f=CreateFileW(path,GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);if(f==INVALID_HANDLE_VALUE)return false;LARGE_INTEGER size{};bool ok=GetFileSizeEx(f,&size)&&size.QuadPart>=0&&size.QuadPart<=16*1024*1024; if(ok){bytes.resize(size_t(size.QuadPart));DWORD n=0;ok=bytes.empty()|| (ReadFile(f,bytes.data(),DWORD(bytes.size()),&n,nullptr)&&n==bytes.size());}CloseHandle(f);return ok;}
+static bool read_file(const wchar_t* path,std::string& bytes,size_t max_bytes=16*1024*1024){HANDLE f=CreateFileW(path,GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);if(f==INVALID_HANDLE_VALUE)return false;LARGE_INTEGER size{};bool ok=GetFileSizeEx(f,&size)&&size.QuadPart>=0&&static_cast<unsigned long long>(size.QuadPart)<=max_bytes; if(ok){bytes.resize(size_t(size.QuadPart));DWORD n=0;ok=bytes.empty()|| (ReadFile(f,bytes.data(),DWORD(bytes.size()),&n,nullptr)&&n==bytes.size());}CloseHandle(f);return ok;}
 static bool utf8_to_wide(const std::string& input,std::wstring& output){if(input.empty()){output.clear();return true;}int n=MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,input.data(),int(input.size()),nullptr,0);if(!n)return false;output.resize(n);return MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,input.data(),int(input.size()),output.data(),n)==n;}
+static bool find_scene_output_file(const std::string& project,int scene_id,std::string& output_file){
+ const std::string section="[scene."+std::to_string(scene_id)+"]";bool in_scene=false;size_t pos=0;
+ while(pos<=project.size()){size_t end=project.find('\n',pos);if(end==std::string::npos)end=project.size();size_t line_end=end;if(line_end>pos&&project[line_end-1]=='\r')--line_end;std::string line=project.substr(pos,line_end-pos);
+  if(!line.empty()&&line.front()=='['&&line.back()==']')in_scene=line==section;
+  else if(in_scene&&line.rfind("output.file=",0)==0){output_file=line.substr(12);return !output_file.empty();}
+  if(end==project.size())break;pos=end+1;
+ }return false;
+}
+static bool suggested_srt_path(EDIT_SECTION* edit,std::wstring& output){
+ if(!edit||!edit->info||!export_edit_handle||!edit->get_project_file)return false;PROJECT_FILE* project=edit->get_project_file(export_edit_handle);if(!project||!project->get_project_file_path)return false;LPCWSTR raw_path=project->get_project_file_path();if(!raw_path||!*raw_path)return false;std::wstring project_path=raw_path;std::string bytes;if(!read_file(project_path.c_str(),bytes,64*1024*1024))return false;std::string saved_output;if(!find_scene_output_file(bytes,edit->info->scene_id,saved_output)||!utf8_to_wide(saved_output,output)||output.empty())return false;
+ size_t slash=output.find_last_of(L"\\/");size_t dot=output.find_last_of(L'.');if(dot==std::wstring::npos||(slash!=std::wstring::npos&&dot<slash))output+=L".srt";else output.replace(dot,std::wstring::npos,L".srt");return true;
+}
 static const wchar_t* find_srtrack_effect(EDIT_SECTION* edit,OBJECT_HANDLE object,std::wstring& name){
  for(const wchar_t* known:{L"SRTrack",L"SRTrack Object"})if(edit->count_object_effect(object,known)>0)return known;
  const char* raw=edit->get_object_alias(object);if(!raw)return nullptr;std::string alias=raw;size_t pos=0;
@@ -123,10 +136,10 @@ static void export_subtitles(EDIT_SECTION* edit){
  std::stable_sort(captions.begin(),captions.end(),[](const Caption&a,const Caption&b){return a.start!=b.start?a.start<b.start:a.layer<b.layer;});std::vector<SourceTimedCaption> sources;for(const auto& c:captions)sources.push_back({frame_milliseconds(c.start,edit->info->rate,edit->info->scale),frame_milliseconds(c.end,edit->info->rate,edit->info->scale),c.text,false});for(const auto& b:srt_blocks)sources.push_back({b.start,b.end,b.text,true});auto blocks=merge_timed_blocks(integrate_timeline(sources),threshold,minimum);size_t omitted=0;auto shifted=shift_timeline(blocks,offset,&omitted);auto output=render_srt(shifted);
  if(output.empty()){MessageBoxW(owner,L"オフセットを適用すると全ての字幕が動画開始前になるため、出力できません。",L"SRTrack Exporter",MB_ICONWARNING);return;}
  if(warnings&&MessageBoxW(owner,L"取得できない項目や制御文字等を検出しました。出力内容の確認が必要です。続けますか？",L"SRTrack Exporter",MB_YESNO|MB_ICONWARNING)!=IDYES)return;
- wchar_t path[32768]=L"subtitles.srt";OPENFILENAMEW ofn{};ofn.lStructSize=sizeof(ofn);ofn.hwndOwner=owner;ofn.lpstrFilter=L"SRT 字幕 (*.srt)\0*.srt\0\0";ofn.lpstrFile=path;ofn.nMaxFile=32768;ofn.lpstrDefExt=L"srt";ofn.Flags=OFN_OVERWRITEPROMPT|OFN_PATHMUSTEXIST|OFN_NOCHANGEDIR;
+ wchar_t path[32768]=L"subtitles.srt";std::wstring suggested_path;if(suggested_srt_path(edit,suggested_path)&&suggested_path.size()<std::size(path))wcscpy_s(path,suggested_path.c_str());OPENFILENAMEW ofn{};ofn.lStructSize=sizeof(ofn);ofn.hwndOwner=owner;ofn.lpstrFilter=L"SRT 字幕 (*.srt)\0*.srt\0\0";ofn.lpstrFile=path;ofn.nMaxFile=32768;ofn.lpstrDefExt=L"srt";ofn.Flags=OFN_OVERWRITEPROMPT|OFN_PATHMUSTEXIST|OFN_NOCHANGEDIR;
  if(!GetSaveFileNameW(&ofn))return;if(!write_file(path,output)){MessageBoxW(owner,L"ファイルの書き込みに失敗しました。",L"SRTrack Exporter",MB_ICONERROR);return;}
  std::wstring msg=L"出力しました。\n対象: "+std::to_wstring(captions.size())+L" 件\n字幕: "+std::to_wstring(shifted.size())+L" 件\n開始前のため除外: "+std::to_wstring(omitted)+L" 件\n警告: "+std::to_wstring(warnings)+L" 件\n\n"+path;MessageBoxW(owner,msg.c_str(),L"SRTrack Exporter",MB_OK);
 }
 BOOL WINAPI DllMain(HINSTANCE instance,DWORD reason,LPVOID){if(reason==DLL_PROCESS_ATTACH){module_handle=instance;initialize_importer(instance);initialize_monitor(instance);}return TRUE;}
 extern "C" __declspec(dllexport) COMMON_PLUGIN_TABLE* GetCommonPluginTable(){static COMMON_PLUGIN_TABLE t{L"SRTrack",L"SRT 字幕の出力と同名 SRT の取込を支援します"};return &t;}
-extern "C" __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE* host){load_settings();host->register_export_menu(L"SRTrack Exporter",export_subtitles);register_importer();register_monitor(host);}
+extern "C" __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE* host){load_settings();export_edit_handle=host->create_edit_handle();host->register_export_menu(L"SRTrack Exporter",export_subtitles);register_importer();register_monitor(host);}
