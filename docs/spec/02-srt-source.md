@@ -6,8 +6,8 @@ SRTrack は、一つの Object に動画追従と手動再生設定を同居さ�
 
 | Object | 時間変換の基準 | 主な用途 | 状態 |
 | --- | --- | --- | --- |
-| SRTrack Object | 同じ時刻に直上レイヤーにある標準 `動画ファイル` Object | レンダリング済み動画と対応する SRT | `SRTrack.obj2`、次期実装 |
-| SRTrack Object (Standalone) | Object 自身の再生開始位置と速度 | 動画と独立した SRT の配置 | `SRTrackStandalone.obj2`、次期実装 |
+| SRTrack Object | 同じ時刻に直上レイヤーにある標準 `動画ファイル` Object | レンダリング済み動画と対応する SRT | `SRTrack.obj2`、初期実装・簡易確認済み |
+| SRTrack Object (Standalone) | Object 自身の再生開始位置と速度 | 動画と独立した SRT の配置 | `SRTrackStandalone.obj2`、初期実装 |
 
 両者は SRT ファイルを読み、Exporter の字幕ソースになり、編集用字幕プレビューを任意に表示する。プレビューは確認専用であり、動画書き出し中は描画しない。Exporter の統合・結合・オフセット結果とプレビュー表示の一致は要件にしない。
 
@@ -27,7 +27,7 @@ SRTrack Object (Standalone) は動画を参照しない補助的な Object で�
 
 SRTrack Object の存在する時刻に直上レイヤーの標準動画がない場合、その時刻は有効な字幕ソースではない。Preview は編集画面に専用エラーを表示する。Exporter は当該区間を単に字幕がない区間として扱い、警告や失敗にせず出力を継続する。SRT の読込失敗や不正な設定も、空字幕として黙って扱わず編集画面に診断を表示する。診断は動画書き出し中には描画しない。
 
-Preview は描画時に Lua の `obj.getvalue()` で直上レイヤーの動画 Object の設定値を直接参照する。`SRTrack.mod2` は Unicode を含む SRT パスの読込だけを担う。常時監視やプロジェクト全走査は行わない。実装可能性と性能は実機で検証する。
+Preview は描画時に Lua の `obj.getvalue()` で直上レイヤーの動画 Object の設定値と開始フレームを直接参照する。SRTrack Object 自身の開始フレームとの差をフレームレートで秒へ換算し、動画の途中から置かれた場合も動画内の対応位置から表示する。`SRTrack.mod2` は Unicode を含む SRT パスの読込だけを担う。常時監視やプロジェクト全走査は行わない。実装可能性と性能は実機で検証する。
 
 Lua API で標準動画の再生範囲として直接取得できるのは開始位置 `P` である。Preview の終端は、同じタイムライン範囲へ配置される SRTrack Object 自身の終端で表す。したがって Preview の時間変換には `P`、再生速度、ループ、`D` を使用する。
 

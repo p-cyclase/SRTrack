@@ -22,7 +22,7 @@ SRTrack は AviUtl ExEdit2 上の字幕ソースを統合し、編集後のタ�
 
 ## 実装状態
 
-現行実装は旧単一 `SRTrack Object` と旧 Monitor を含む初期実装である。新しい主用途の SRTrack Object、SRTrack Object (Standalone)、直上動画参照型 Preview／Exporter、Monitor 廃止は次期の大幅変更であり、まだ実装済みではない。既存機能の概略動作確認は、新方式の受け入れ試験を意味しない。
+現行実装は、二つの Object、Monitor 廃止、直上動画参照型の Preview／Exporter を含む初期実装である。Preview は動画と SRTrack Object の開始位置差を反映する。分割・伸縮・速度変更・ループを含む標準動画との完全一致、および網羅的な受け入れ試験は未完了である。
 
 完成時の配布物は `SRTrack.aux2`、`SRTrack.lua`、`SRTrack.obj2`、`SRTrackStandalone.obj2`、`SRTrack.mod2` の5ファイルとする。`SRTrack.aux2` は Exporter と Importer、`SRTrack.lua` は GCMZDrops2 ハンドラー、二つの Object と共通 Preview モジュールは Script 側に配置する。
 

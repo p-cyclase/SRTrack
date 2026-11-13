@@ -111,8 +111,19 @@ local function direct_video_state()
     if not position or not speed or speed == 0 then
         return nil, "直上動画の再生設定を取得できません"
     end
+    local object_start = tonumber(obj.getvalue("frame_s"))
+    local video_start = tonumber(obj.getvalue("layer" .. video_layer .. ".frame_s"))
+    local frame_rate = tonumber(obj.framerate) or tonumber(obj.getpoint("framerate"))
+    if not object_start or not video_start or not frame_rate or frame_rate <= 0 then
+        return nil, "直上動画との開始位置差を取得できません"
+    end
     local loop = loop_value == true or loop_value == 1 or loop_value == "1" or loop_value == "true"
-    return { position = position, speed = speed, loop = loop }
+    return {
+        position = position,
+        speed = speed,
+        loop = loop,
+        offset = (object_start - video_start) / frame_rate,
+    }
 end
 
 if obj.getinfo("saving") or not preview then
@@ -145,7 +156,8 @@ else
         if #captions == 0 and bytes ~= "" then
             draw_preview("[SRTrack] 有効な SRT 字幕が見つかりません", 0xff8080, 0x400000)
         else
-            local source_time = state.position * 1000 + (state.speed / 100) * obj.time * 1000
+            local source_time = state.position * 1000
+                + (state.speed / 100) * (state.offset + obj.time) * 1000
             local in_range = true
             if state.loop then
                 if not source_duration or source_duration <= 0 then
