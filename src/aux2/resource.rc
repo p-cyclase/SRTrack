@@ -24,3 +24,18 @@ BEGIN
     PUSHBUTTON "次へ", 1020, 173, 260, 50, 14
     PUSHBUTTON "キャンセル", IDCANCEL, 230, 260, 50, 14
 END
+
+102 DIALOGEX 0, 0, 292, 142
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "SRTrack 設定"
+FONT 9, "Yu Gothic UI"
+BEGIN
+    GROUPBOX "Importer", -1, 8, 7, 276, 126
+    AUTOCHECKBOX "同名 SRT を自動で取り込む", 2001, 17, 20, 180, 12
+    LTEXT "SRT ファイル単体をドロップしたとき", -1, 17, 43, 190, 12
+    AUTORADIOBUTTON "SRTrack Object として配置", 2002, 27, 58, 170, 12, WS_GROUP
+    AUTORADIOBUTTON "SRTrack Object (Standalone) として配置", 2003, 27, 75, 220, 12
+    AUTORADIOBUTTON "処理しない（他のプラグインに渡す）", 2004, 27, 92, 220, 12
+    DEFPUSHBUTTON "OK", IDOK, 177, 114, 50, 14
+    PUSHBUTTON "キャンセル", IDCANCEL, 232, 114, 50, 14
+END

@@ -9,7 +9,7 @@
 | SRTrack Object | 直上動画を参照して SRT を時間変換する主用途の Object | 次期実装 |
 | SRTrack Object (Standalone) | 自身の再生設定で SRT を時間変換する補助的な Object | 次期実装 |
 | Preview モジュール | 編集画面専用の字幕・診断表示 | 初期実装済み、直上参照方式へ更新予定 |
-| SRTrack 共通設定 | Importer の有効状態と単体 SRT ドロップの扱いを利用者単位で管理 | 実装予定 |
+| SRTrack 共通設定 | Importer の有効状態と単体 SRT ドロップの扱いを利用者単位で管理 | 初期実装済み |
 
 Monitor は旧構成の初期実装であり、採用しない。詳細は [07-monitor.md](07-monitor.md) を参照する。
 
