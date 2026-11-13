@@ -41,7 +41,7 @@ SRTrack Object には、検出した SRT パス、元動画の長さを表す `�
 
 ## 6.3 SRT 単体のドロップ
 
-`.srt` 単体をドロップした場合、Importer は `SRTrackObject` を一つ含む一時 `.object` エイリアスに置き換える。SRT の最大終了時刻を Object 長とし、有効な時刻を得られない場合は最小 1 フレームとする。
+`.srt` 単体をドロップした場合、Importer は AviUtl2 SDK の Object 作成 API で `SRTrackObject` を直接一つ配置する。動画との組、グループ、複数 Object エイリアスを必要としないため、この経路で一時 `.object` エイリアスは生成しない。SRT の最大終了時刻を Object 長とし、有効な時刻を得られない場合は最小 1 フレームとする。
 
 この初期実装は、動画とグループ化せず、`動画全長 D` を `0` に設定する。直上動画が必要な `SRTrackObject` を配置するだけであり、Standalone Object にはしない。
 

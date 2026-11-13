@@ -71,27 +71,21 @@ int srt_length_frames(const wchar_t* path, const EDIT_INFO* info) {
   return static_cast<int>((std::max)(int64_t{1}, frames));
 }
 
-void append_standard_drawing(std::string& alias) {
-  alias += "[0.1]\r\n"
-           "effect.name=標準描画\r\n"
-           "X=0.00\r\nY=0.00\r\nZ=0.00\r\nGroup=1\r\n"
-           "中心X=0.00\r\n中心Y=0.00\r\n中心Z=0.00\r\nGroup3=1\r\n"
-           "X軸回転=0.00\r\nY軸回転=0.00\r\nZ軸回転=0.00\r\nGroup2=1\r\n"
-           "拡大率=100.000\r\n縦横比=0.000\r\n透明度=0.00\r\n合成モード=通常\r\n";
-}
-
 void on_srt_file_drop(EDIT_SECTION* edit, LPCWSTR file) {
   if (!edit || !edit->info || !file) return;
   std::string path = wide_to_utf8(file);
   if (path.empty() || path.find_first_of("\r\n") != std::string::npos) return;
   const int length = srt_length_frames(file, edit->info);
-  std::string alias = "[0]\r\nlayer=1\r\nframe=0," +
-      std::to_string(length - 1) +
-      "\r\n[0.0]\r\neffect.name=SRTrackObject\r\nSRT ファイル=" + path +
-      "\r\n動画全長=0.000\r\n字幕プレビュー=1\r\n";
-  append_standard_drawing(alias);
-  edit->create_object_from_alias(alias.c_str(), edit->info->layer,
-                                 edit->info->frame, length);
+  OBJECT_HANDLE object = edit->create_object(L"SRTrackObject", edit->info->layer,
+                                              edit->info->frame, length);
+  if (!object) return;
+  // This is intentionally not an alias: a lone SRT has no paired media or
+  // group structure to reproduce.  It is the same Object a user can insert
+  // from AviUtl2's Object menu, with only its initial values supplied here.
+  edit->set_object_item_value(object, L"SRTrackObject", L"SRT ファイル",
+                              path.c_str());
+  edit->set_object_item_value(object, L"SRTrackObject", L"動画全長", "0.000");
+  edit->set_object_item_value(object, L"SRTrackObject", L"字幕プレビュー", "1");
 }
 
 bool get_script_path(wchar_t* path, DWORD capacity) {
