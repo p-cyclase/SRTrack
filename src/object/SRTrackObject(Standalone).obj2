@@ -12,18 +12,30 @@ local function draw(text, color)
 end
 local function clear() obj.load("text", ""); obj.draw() end
 local function timestamp(value)
-    local h,m,s,ms=value:match("^%s*(%d+):(%d+):(%d+)[,.](%d+)%s*$")
-    h,m,s,ms=tonumber(h),tonumber(m),tonumber(s),tonumber(ms)
-    if not h or not m or not s or not ms or m>=60 or s>=60 then return nil end
-    if #value:match("[,.](%d+)%s*$") == 1 then ms=ms*100 elseif #value:match("[,.](%d+)%s*$") == 2 then ms=ms*10 end
-    return ((h*60+m)*60+s)*1000+ms
+    local h, m, s, ms = value:match("^%s*(%d+):(%d+):(%d+)[,.](%d+)%s*$")
+    local fraction = value:match("[,.](%d+)%s*$")
+    h, m, s, ms = tonumber(h), tonumber(m), tonumber(s), tonumber(ms)
+    if not h or not m or not s or not ms or not fraction or m >= 60 or s >= 60 then return nil end
+    if #fraction == 1 then ms = ms * 100 elseif #fraction == 2 then ms = ms * 10 end
+    return ((h * 60 + m) * 60 + s) * 1000 + ms
 end
+
 local function captions(bytes)
-    local out={}; bytes=bytes:gsub("^\239\187\191",""):gsub("\r\n","\n"):gsub("\r","\n")
-    for block in (bytes.."\n\n"):gmatch("(.-)\n\n") do
-        local left,right,text=block:match(".-([%d:,%.%s]+)%s*%-%-%>%s*([%d:,%.%s]+)\n(.+)")
-        local a,b=left and timestamp(left),right and timestamp(right)
-        if a and b and b>a and text and text~="" then out[#out+1]={a=a,b=b,text=text} end
+    local out = {}
+    bytes = bytes:gsub("^\239\187\191", ""):gsub("\r\n", "\n"):gsub("\r", "\n")
+    for block in (bytes .. "\n\n"):gmatch("(.-)\n\n") do
+        local lines = {}
+        for line in (block .. "\n"):gmatch("(.-)\n") do lines[#lines + 1] = line end
+        local timing, timing_index
+        for index, line in ipairs(lines) do
+            if line:find("%-%->") then timing, timing_index = line, index; break end
+        end
+        if timing then
+            local left, right = timing:match("^%s*(.-)%s*%-%-%>%s*(.-)%s*$")
+            local a, b = left and timestamp(left), right and timestamp(right)
+            local text = table.concat(lines, "\n", timing_index + 1)
+            if a and b and b > a and text ~= "" then out[#out + 1] = { a = a, b = b, text = text } end
+        end
     end
     return out
 end
@@ -35,13 +47,25 @@ else
     if global[key.."_path"]~=file then
         global[key.."_path"]=file
         local ok,module=pcall(function() return obj.module("SRTrack") end)
-        local read_ok,bytes=ok and pcall(module.read_utf8_file,file)
-        global[key.."_bytes"]=read_ok and bytes or ""; global[key.."_error"]=read_ok and "" or tostring(bytes)
+        if not ok or not module or not module.read_utf8_file then
+            global[key.."_bytes"]=""
+            global[key.."_error"]="SRTrack.mod2 を読み込めません"
+        else
+            local read_ok,bytes=pcall(module.read_utf8_file,file)
+            global[key.."_bytes"]=read_ok and bytes or ""
+            global[key.."_error"]=read_ok and "" or tostring(bytes)
+        end
     end
     local err=global[key.."_error"] or ""
+    local bytes=global[key.."_bytes"] or ""
     if err~="" then draw("[SRTrack] "..err,0xff8080) else
-        local now=position*1000+(speed/100)*obj.time*1000; local text={}
-        for _,c in ipairs(captions(global[key.."_bytes"] or "")) do if c.a<=now and now<c.b then text[#text+1]=c.text end end
-        if #text==0 then clear() else draw(table.concat(text,"\n")) end
+        local parsed=captions(bytes)
+        if #parsed==0 and bytes~="" then
+            draw("[SRTrack] 有効な SRT 字幕が見つかりません",0xff8080)
+        else
+            local now=position*1000+(speed/100)*obj.time*1000; local text={}
+            for _,c in ipairs(parsed) do if c.a<=now and now<c.b then text[#text+1]=c.text end end
+            if #text==0 then clear() else draw(table.concat(text,"\n")) end
+        end
     end
 end
