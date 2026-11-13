@@ -3,6 +3,7 @@
 #include <windows.h>
 
 // Registers the adjacent SRTrack.lua handler through GCMZDrops2 when that
-// prerequisite is available. All import decisions remain in the handler.
+// prerequisite is available, and the native .srt drop entrance.
 void initialize_importer(HINSTANCE instance);
-void register_importer();
+struct HOST_APP_TABLE;
+void register_importer(HOST_APP_TABLE* host);

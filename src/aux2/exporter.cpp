@@ -141,4 +141,4 @@ static void export_subtitles(EDIT_SECTION* edit){
 }
 BOOL WINAPI DllMain(HINSTANCE instance,DWORD reason,LPVOID){if(reason==DLL_PROCESS_ATTACH){module_handle=instance;initialize_importer(instance);}return TRUE;}
 extern "C" __declspec(dllexport) COMMON_PLUGIN_TABLE* GetCommonPluginTable(){static COMMON_PLUGIN_TABLE t{L"SRTrack",L"SRT 字幕の出力と同名 SRT の取込を支援します"};return &t;}
-extern "C" __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE* host){load_settings();export_edit_handle=host->create_edit_handle();host->register_export_menu(L"SRTrack Exporter",export_subtitles);register_importer();}
+extern "C" __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE* host){load_settings();export_edit_handle=host->create_edit_handle();host->register_export_menu(L"SRTrack Exporter",export_subtitles);register_importer(host);}

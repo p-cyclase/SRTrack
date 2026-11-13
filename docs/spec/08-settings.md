@@ -13,7 +13,7 @@ SRTrack 全体に適用する利用者単位の設定は必要である。とく
 | 項目 | 値 | 想定する既定値 | 目的 |
 | --- | --- | --- | --- |
 | 同名 SRT 自動取込 | オン／オフ | オン | オフなら動画ドロップへ介入せず、通常の入力プラグインへ渡す。 |
-| SRT ファイル単体のドロップ | `SRTrack Object`／`SRTrack Object (Standalone)`／`処理しない` | 処理しない | `.srt` 単体をドロップしたときの Importer の扱いを選ぶ。 |
+| SRT ファイル単体のドロップ | `SRTrack Object`／`SRTrack Object (Standalone)`／`処理しない` | `SRTrack Object` | `.srt` 単体をドロップしたときの Importer の扱いを選ぶ。現行版は設定なしで `SRTrack Object` を固定使用する。 |
 
 グループ化、動画全長 `D` の初期設定、同名 SRT の探索規則は、同名 SRT 自動取込が有効な場合の一体の処理とする。個別のオン・オフは設けない。
 
