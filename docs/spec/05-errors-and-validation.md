@@ -14,7 +14,7 @@
 - 当面の対象は AviUtl ExEdit2 2.1.13。
 - SRTrack Exporter は AviUtl2 Plugin SDK の同梱ヘッダーを使用する。SDK の日付だけで互換性を判断しない。
 - SRTrack Importer は GCMZDrops2 と L-SMASH Works を前提プラグインとする。いずれも同梱せず、GCMZDrops2 は公開ハンドラースクリプト API のみを利用する。固定の対応拡張子一覧は持たず、導入済みの L-SMASH Works または標準 AVI 読込が動画トラックとして認識できる形式を対象にし、複数オブジェクト・エイリアス内の標準動画オブジェクトへファイル参照を設定する。
-- 旧単一 SRTrack Object の設定取得、SRT 出力、`SRTrack.mod2` による日本語パス読込とループ、GCMZDrops2 経由の同名 SRT 検出・二層配置・ペアごとのグループ化・複数動画のファイル名順配置は AviUtl2 2.1.13 で概略確認済み。Link／Clip Object と Monitor 廃止後の動作は未検証である。
+- 旧単一 SRTrack Object の設定取得、SRT 出力、`SRTrack.mod2` による日本語パス読込とループ、GCMZDrops2 経由の同名 SRT 検出・二層配置・ペアごとのグループ化・複数動画のファイル名順配置は AviUtl2 2.1.13 で概略確認済み。新しい SRTrack Object／SRTrack Object (Standalone) と Monitor 廃止後の動作は未検証である。
 
 ### 外部製作物の扱い
 
@@ -22,7 +22,7 @@ SRTrack は、公開されている AviUtl2 の公式ドキュメントと Plugi
 
 ## 5.3 旧構成の検証項目（履歴）
 
-以下は旧単一 Object と Monitor を前提にした検証記録である。Link／Clip Object の正規の受け入れ条件ではない。
+以下は旧単一 Object と Monitor を前提にした検証記録である。新しい二種類の Object の正規の受け入れ条件ではない。
 
 ### SRT 解析
 
@@ -72,10 +72,10 @@ SRTrack は、公開されている AviUtl2 の公式ドキュメントと Plugi
 
 ## 5.5 次期 Object モデルの受け入れ条件
 
-1. Link Object が直上動画の `P`・`E`・速度・ループを読んで字幕を変換し、動画の移動、分割、伸縮、速度変更に対する結果を標準動画と比較する。
-2. Link Object の範囲内で直上動画が切り替わる場合、重複区間ごとに別の動画値が使われることを確認する。
-3. Link Object の直上に動画がない時刻は Preview がエラーを表示し、Exporter が該当区間を除外して警告へ集計することを確認する。
-4. Link Object の `D` が Importer で初期化され、移動・分割・伸縮で変化せず、ループ時の周期として使われることを確認する。
-5. 動画ファイル名を変更しても Link Object の SRT ファイル指定が自動変更されないこと、別名の動画と SRT を手動指定して使えることを確認する。
-6. Clip Object が動画なしで `P`・速度・自身のタイムライン範囲から字幕を変換し、SRT 最終字幕以降を空表示・非出力にすることを確認する。
+1. SRTrack Object が直上動画の `P`・`E`・速度・ループを読んで字幕を変換し、動画の移動、分割、伸縮、速度変更に対する結果を標準動画と比較する。
+2. SRTrack Object の範囲内で直上動画が切り替わる場合、重複区間ごとに別の動画値が使われることを確認する。
+3. SRTrack Object の直上に動画がない時刻は Preview がエラーを表示し、Exporter が該当区間を除外して警告へ集計することを確認する。
+4. SRTrack Object の `D` が Importer で初期化され、移動・分割・伸縮で変化せず、ループ時の周期として使われることを確認する。
+5. 動画ファイル名を変更しても SRTrack Object の SRT ファイル指定が自動変更されないこと、別名の動画と SRT を手動指定して使えることを確認する。
+6. SRTrack Object (Standalone) が動画なしで `P`・速度・自身のタイムライン範囲から字幕を変換し、SRT 最終字幕以降を空表示・非出力にすることを確認する。
 7. Preview が必要時だけ動画を参照し、SRTrack と無関係な Object 更新で常駐監視処理を行わないことを確認する。
