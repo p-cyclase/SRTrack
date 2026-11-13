@@ -14,8 +14,8 @@
 
 - 当面の対象は AviUtl ExEdit2 2.1.13。
 - SRTrack Exporter は AviUtl2 Plugin SDK の同梱ヘッダーを使用する。SDK の日付だけで互換性を判断しない。
-- SRTrack Importer は GCMZDrops2 と L-SMASH Works を前提プラグインとする。いずれも同梱せず、GCMZDrops2 は公開ハンドラースクリプト API のみを利用する。固定の対応拡張子一覧は持たず、導入済みの L-SMASH Works または標準 AVI 読込が動画トラックとして認識できる形式を対象にし、複数オブジェクト・エイリアス内の標準動画オブジェクトへファイル参照を設定する。
-- Importer の `drag_enter` は拡張子・MIME 種別など渡されたメタ情報だけを参照し、ファイルを開かない。同名 SRT の存在確認、メディア情報取得、エイリアス生成は `drop` 中に限定する。
+- SRTrack Importer は GCMZDrops2 と L-SMASH Works を前提プラグインとする。いずれも同梱せず、GCMZDrops2 は公開ハンドラースクリプト API のみを利用する。対象拡張子は標準 AVI 読込と L-SMASH Works の登録拡張子に合わせ、実際に取り込むのは公開メディア情報 API で動画トラックを確認できたファイルだけとする。
+- Importer の `drag_enter` は対象拡張子だけを参照し、ファイルを開かない。同名 SRT の存在確認、メディア情報取得、エイリアス生成は `drop` 中に限定する。
 - 旧単一 SRTrack Object の設定取得、SRT 出力、`SRTrack.mod2` による日本語パス読込とループ、GCMZDrops2 経由の同名 SRT 検出・二層配置・ペアごとのグループ化・複数動画のファイル名順配置は AviUtl2 2.1.13 で概略確認済み。新しい SRTrack Object／SRTrack Object (Standalone) の基本 Preview 動作も同環境で概略確認済みである。Monitor は廃止済みであり、現行方式の一部ではない。
 
 Object／Preview は初期版完成とする。分割・伸縮・複数の直上動画・複雑なループなどで標準動画と完全に一致するかの確認は、今後のバグフィクス・互換性確認に含める。未検証であることは、要求済み機能が未実装であることを意味しない。

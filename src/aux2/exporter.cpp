@@ -87,31 +87,6 @@ static INT_PTR CALLBACK dialog(HWND h,UINT msg,WPARAM w,LPARAM) {
   settings=next;if(!save_settings())MessageBoxW(h,L"設定を保存できませんでした。今回の出力は続行できます。",L"設定保存",MB_ICONWARNING);EndDialog(h,IDOK);return TRUE;}
  if((msg==WM_COMMAND&&LOWORD(w)==IDCANCEL)||msg==WM_CLOSE){EndDialog(h,IDCANCEL);return TRUE;}return FALSE;
 }
-static void enable_importer_settings(HWND h){
- BOOL enabled=IsDlgButtonChecked(h,2001)==BST_CHECKED;
- EnableWindow(GetDlgItem(h,2002),enabled);EnableWindow(GetDlgItem(h,2003),enabled);EnableWindow(GetDlgItem(h,2004),enabled);
-}
-static INT_PTR CALLBACK importer_settings_dialog(HWND h,UINT msg,WPARAM w,LPARAM){
- if(msg==WM_INITDIALOG){
-  auto importer=get_importer_settings();
-  CheckDlgButton(h,2001,importer.auto_import_enabled?BST_CHECKED:BST_UNCHECKED);
-  int checked=2004;
-  if(importer.single_srt_drop_mode==SingleSrtDropMode::LinkedObject)checked=2002;
-  else if(importer.single_srt_drop_mode==SingleSrtDropMode::StandaloneObject)checked=2003;
-  CheckRadioButton(h,2002,2004,checked);enable_importer_settings(h);return TRUE;
- }
- if(msg==WM_COMMAND&&LOWORD(w)==2001){enable_importer_settings(h);return TRUE;}
- if(msg==WM_COMMAND&&LOWORD(w)==IDOK){
-  ImporterSettings next;next.auto_import_enabled=IsDlgButtonChecked(h,2001)==BST_CHECKED;
-  if(IsDlgButtonChecked(h,2002)==BST_CHECKED)next.single_srt_drop_mode=SingleSrtDropMode::LinkedObject;
-  else if(IsDlgButtonChecked(h,2003)==BST_CHECKED)next.single_srt_drop_mode=SingleSrtDropMode::StandaloneObject;
-  else next.single_srt_drop_mode=SingleSrtDropMode::PassThrough;
-  if(!set_importer_settings(next)){MessageBoxW(h,L"設定を保存できませんでした。",L"SRTrack 設定",MB_ICONWARNING);return TRUE;}
-  EndDialog(h,IDOK);return TRUE;
- }
- if((msg==WM_COMMAND&&LOWORD(w)==IDCANCEL)||msg==WM_CLOSE){EndDialog(h,IDCANCEL);return TRUE;}return FALSE;
-}
-static void open_srtrack_settings(HWND owner,HINSTANCE){DialogBoxParamW(module_handle,MAKEINTRESOURCEW(102),owner,importer_settings_dialog,0);}
 static std::string decode_value(const char* raw){std::string out;for(size_t i=0;raw[i];++i){if(raw[i]=='\\'&&raw[i+1]){char n=raw[i+1];if(n=='n'){out+='\n';++i;continue;}if(n=='r'){++i;continue;}if(n=='\\'){out+='\\';++i;continue;}}out+=raw[i];}return out;}
 static bool empty_text(const std::string& s){return s.find_first_not_of(" \t\r\n")==std::string::npos;}
 static bool write_file(const wchar_t* path,const std::string& bytes){HANDLE f=CreateFileW(path,GENERIC_WRITE,0,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);if(f==INVALID_HANDLE_VALUE)return false;DWORD n=0;bool ok=bytes.size()<=MAXDWORD&&WriteFile(f,bytes.data(),DWORD(bytes.size()),&n,nullptr)&&n==bytes.size();if(!CloseHandle(f))ok=false;return ok;}
@@ -166,4 +141,4 @@ static void export_subtitles(EDIT_SECTION* edit){
 }
 BOOL WINAPI DllMain(HINSTANCE instance,DWORD reason,LPVOID){if(reason==DLL_PROCESS_ATTACH){module_handle=instance;initialize_importer(instance);}return TRUE;}
 extern "C" __declspec(dllexport) COMMON_PLUGIN_TABLE* GetCommonPluginTable(){static COMMON_PLUGIN_TABLE t{L"SRTrack",L"SRT 字幕の出力と同名 SRT の取込を支援します"};return &t;}
-extern "C" __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE* host){load_settings();load_importer_settings();export_edit_handle=host->create_edit_handle();host->register_export_menu(L"SRTrack Exporter",export_subtitles);host->register_config_menu(L"SRTrack 設定…",open_srtrack_settings);register_importer(host);}
+extern "C" __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE* host){load_settings();export_edit_handle=host->create_edit_handle();host->register_export_menu(L"SRTrack Exporter",export_subtitles);register_importer();}

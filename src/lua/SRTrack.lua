@@ -1,11 +1,26 @@
--- SRTrack Importer handler for GCMZDrops2, loaded from SRTrack.lua.
--- Uses only GCMZDrops2's documented handler API.  A matching video/SRT pair
--- is replaced with one standard AviUtl2 multi-object alias, which preserves
--- the pair's group relationship on import.
+-- SRTrack Importer handler for GCMZDrops2.
+--
+-- This initial implementation has one responsibility only: when a supported
+-- media file and a same-name SRT file are dropped together as a pair, replace
+-- the media file with a two-object alias (video below, SRTrack Object above)
+-- whose two objects share a group value.
 
 local M = {
   name = "SRTrack Importer",
   priority = 1000,
+}
+
+-- AviUtl2's standard AVI reader plus the extensions registered by the
+-- L-SMASH Works reader used by SRTrack's supported environment.  The actual
+-- video-track check is still performed in drop(), because some extensions
+-- also represent audio-only media.
+local supported_extensions = {
+  avi = true,
+  mp4 = true, m4v = true, m4a = true, mov = true, qt = true,
+  ["3gp"] = true, ["3g2"] = true, f4v = true, ismv = true, isma = true,
+  mpg = true, mpeg = true, m1v = true, mts = true, m2t = true, m2ts = true,
+  ts = true, vob = true, dv = true, flv = true, mkv = true, webm = true,
+  wmv = true, asf = true, lwi = true, avs = true, vpy = true,
 }
 
 local function extension(path)
@@ -14,11 +29,7 @@ local function extension(path)
 end
 
 local function sibling_srt(path)
-  return (path:gsub("%.[^./\\]+$", ".srt"))
-end
-
-local function filename(path)
-  return path:match("([^/\\]+)$") or path
+  return path:gsub("%.[^./\\]+$", ".srt")
 end
 
 local function file_exists(path)
@@ -28,55 +39,16 @@ local function file_exists(path)
   return true
 end
 
+local function filename(path)
+  return path:match("([^/\\]+)$") or path
+end
+
 local function escape_alias_value(value)
-  -- AviUtl2 alias values are UTF-8 text. File paths must remain one value.
   return value:gsub("[\r\n]", "")
 end
 
-local function seconds(value)
-  return string.format("%.3f", value)
-end
-
-local function copy_file_list(files)
-  local copied = {}
-  for index, file in ipairs(files) do
-    local entry = {}
-    for key, value in pairs(file) do
-      entry[key] = value
-    end
-    copied[index] = entry
-  end
-  return copied
-end
-
-local function replace_file_list(destination, source)
-  for index = #destination, 1, -1 do
-    table.remove(destination, index)
-  end
-  for _, file in ipairs(source) do
-    table.insert(destination, file)
-  end
-end
-
-local function importer_settings()
-  local ok, module = pcall(gcmz.get_script_module, "SRTrackImporterConfig")
-  if not ok or not module or not module.auto_import_enabled or
-      not module.single_srt_drop_mode then
-    -- Missing configuration bridge is treated as disabled.  A broken or
-    -- partially installed SRTrack must not claim a user's media drop.
-    return false, 0
-  end
-  local enabled_ok, enabled = pcall(module.auto_import_enabled)
-  local mode_ok, mode = pcall(module.single_srt_drop_mode)
-  if not enabled_ok or enabled ~= true or not mode_ok then
-    return false, 0
-  end
-  if mode ~= 1 and mode ~= 2 then mode = 0 end
-  return true, mode
-end
-
 local function append_standard_drawing(lines, effect_name, audio)
-  table.insert(lines, effect_name)
+  table.insert(lines, "effect.name=" .. effect_name)
   table.insert(lines, "X=0.00")
   table.insert(lines, "Y=0.00")
   table.insert(lines, "Z=0.00")
@@ -99,168 +71,107 @@ local function append_standard_drawing(lines, effect_name, audio)
   end
 end
 
-local function write_grouped_alias(pairs, project)
-  local path, err = gcmz.create_temp_file("srtrack.object")
-  if not path then
-    debug_print("[SRTrack] Object temporary file creation failed: " .. tostring(err))
-    return nil
-  end
+local function write_alias(pairs, project)
+  local path = gcmz.create_temp_file("srtrack.object")
+  if not path then return nil end
 
-  -- A single multi-object alias prevents AviUtl2 from allocating a new layer
-  -- pair for every source file.  Each pair has a distinct group value, while
-  -- all pairs use the same video/Object layer pair and are laid out in time.
   local lines = {}
   local next_frame = 0
   local object_index = 0
   for group, pair in ipairs(pairs) do
-    local frame_time = pair.source_duration * project.rate / project.scale
-    local frame_count = math.max(1, math.floor(frame_time + 1e-9))
+    local frame_count = math.max(1, math.floor(pair.duration * project.rate / project.scale + 1e-9))
     local last_frame = next_frame + frame_count - 1
-    local duration = seconds(frame_count * project.scale / project.rate)
+    local duration = string.format("%.3f", frame_count * project.scale / project.rate)
 
-    table.insert(lines, "[" .. tostring(object_index) .. "]")
+    -- The upper subtitle Object.
+    table.insert(lines, "[" .. object_index .. "]")
     table.insert(lines, "layer=2")
-    table.insert(lines, "frame=" .. tostring(next_frame) .. "," .. tostring(last_frame))
-    table.insert(lines, "group=" .. tostring(group))
-    table.insert(lines, "[" .. tostring(object_index) .. ".0]")
+    table.insert(lines, "frame=" .. next_frame .. "," .. last_frame)
+    table.insert(lines, "group=" .. group)
+    table.insert(lines, "[" .. object_index .. ".0]")
     table.insert(lines, "effect.name=SRTrackObject")
-    table.insert(lines, "SRT ファイル=" .. escape_alias_value(pair.srt_path))
+    table.insert(lines, "SRT ファイル=" .. escape_alias_value(pair.srt))
     table.insert(lines, "動画全長=" .. duration)
     table.insert(lines, "字幕プレビュー=1")
-    table.insert(lines, "[" .. tostring(object_index) .. ".1]")
-    append_standard_drawing(lines, "effect.name=標準描画", false)
+    table.insert(lines, "[" .. object_index .. ".1]")
+    append_standard_drawing(lines, "標準描画", false)
     object_index = object_index + 1
 
-    table.insert(lines, "[" .. tostring(object_index) .. "]")
+    -- The lower standard video Object.
+    table.insert(lines, "[" .. object_index .. "]")
     table.insert(lines, "layer=1")
-    table.insert(lines, "frame=" .. tostring(next_frame) .. "," .. tostring(last_frame))
-    table.insert(lines, "group=" .. tostring(group))
-    table.insert(lines, "[" .. tostring(object_index) .. ".0]")
+    table.insert(lines, "frame=" .. next_frame .. "," .. last_frame)
+    table.insert(lines, "group=" .. group)
+    table.insert(lines, "[" .. object_index .. ".0]")
     table.insert(lines, "effect.name=動画ファイル")
     table.insert(lines, "再生位置=0.000," .. duration .. ",再生範囲,0")
     table.insert(lines, "再生速度=100.00")
-    table.insert(lines, "ファイル=" .. escape_alias_value(pair.video_path))
+    table.insert(lines, "ファイル=" .. escape_alias_value(pair.video))
     table.insert(lines, "トラック=0")
     table.insert(lines, "ループ再生=0")
     table.insert(lines, "音声付き=1")
     table.insert(lines, "YUV=")
     table.insert(lines, "fps調整=0")
-    table.insert(lines, "[" .. tostring(object_index) .. ".1]")
-    append_standard_drawing(lines, "effect.name=映像再生", true)
+    table.insert(lines, "[" .. object_index .. ".1]")
+    append_standard_drawing(lines, "映像再生", true)
     object_index = object_index + 1
     next_frame = last_frame + 1
   end
-  table.insert(lines, "")
-  local alias = table.concat(lines, "\r\n")
 
-  local file, open_err = io.open(path, "wb")
-  if not file then
-    debug_print("[SRTrack] Object temporary file write failed: " .. tostring(open_err))
-    return nil
-  end
-  local written, write_err = file:write(alias)
+  local file = io.open(path, "wb")
+  if not file then return nil end
+  file:write(table.concat(lines, "\r\n"), "\r\n")
   file:close()
-  if not written then
-    debug_print("[SRTrack] Object temporary file write failed: " .. tostring(write_err))
-    return nil
-  end
   return path
 end
 
 function M.drag_enter(files, state)
-  local enabled = importer_settings()
-  if not enabled then return false end
+  -- This hook may inspect metadata only.  Do not open files here.
   for _, file in ipairs(files) do
     local ext = extension(file.filepath)
-    -- Do not maintain a second extension list.  When a same-name SRT exists,
-    -- defer format support to the installed L-SMASH Works reader (or AVI
-    -- reader) and verify the actual video track in drop().
-    if ext and ext ~= "srt" and file_exists(sibling_srt(file.filepath)) then
-      return true
-    end
-  end
-  return false
-end
-
-local function import_pairs(files, state)
-  local enabled = importer_settings()
-  if not enabled then return false end
-  local project = gcmz.get_project_data()
-  if not project or not project.rate or not project.scale or project.rate <= 0 or project.scale <= 0 then
-    return false
-  end
-
-  -- Appending generated .object files is the GCMZDrops2 path already used by
-  -- the initial importer.  Remove handled videos explicitly instead of
-  -- assigning files[index], so the host cannot retain the original media item.
-  local pairs = {}
-  local handled_indices = {}
-  for index = #files, 1, -1 do
-    local file = files[index]
-    local ext = extension(file.filepath)
-    if ext and ext ~= "srt" then
-      local srt_path = sibling_srt(file.filepath)
-      if file_exists(srt_path) then
-        local info, err = gcmz.get_media_info(file.filepath)
-        if info and info.video_track_num > 0 and info.total_time and info.total_time > 0 then
-          table.insert(pairs, 1, {
-            video_path = file.filepath,
-            srt_path = srt_path,
-            source_duration = info.total_time,
-            filename = filename(file.filepath),
-            input_index = index,
-          })
-          table.insert(handled_indices, index)
-        else
-          debug_print("[SRTrack] Video information was unavailable: " .. tostring(err or file.filepath))
-        end
-      end
-    end
-  end
-
-  if #pairs > 0 then
-    table.sort(pairs, function(left, right)
-      local left_name = left.filename:lower()
-      local right_name = right.filename:lower()
-      if left_name == right_name then
-        return left.input_index < right.input_index
-      end
-      return left_name < right_name
-    end)
-    local object_path = write_grouped_alias(pairs, project)
-    if object_path then
-      for _, index in ipairs(handled_indices) do
-        table.remove(files, index)
-      end
-      table.insert(files, {
-        filepath = object_path,
-        -- Leave MIME type unspecified so AviUtl2 dispatches the generated
-        -- .object file through its ordinary extension-based loader.
-        mimetype = "",
-        temporary = true,
-      })
-      return true
-    end
+    if ext and supported_extensions[ext] then return true end
   end
   return false
 end
 
 function M.drop(files, state)
-  -- `files` is eventually handed to AviUtl2.  Never alter it until all
-  -- SRTrack work has succeeded, so a handler failure still leaves the normal
-  -- reader chain with the original video files.
-  local staged = copy_file_list(files)
-  local ok, replaced_or_error = xpcall(function()
-    return import_pairs(staged, state)
-  end, debug.traceback)
-  if not ok then
-    debug_print("[SRTrack] Importer failed; original files were preserved: " .. tostring(replaced_or_error))
-    return true
+  local project = gcmz.get_project_data()
+  if not project or not project.rate or not project.scale or project.rate <= 0 or project.scale <= 0 then
+    return
   end
-  if replaced_or_error then
-    replace_file_list(files, staged)
+
+  local pairs = {}
+  local handled = {}
+  for index, file in ipairs(files) do
+    local ext = extension(file.filepath)
+    if ext and supported_extensions[ext] then
+      local srt = sibling_srt(file.filepath)
+      if file_exists(srt) then
+        local info = gcmz.get_media_info(file.filepath)
+        if info and info.video_track_num > 0 and info.total_time and info.total_time > 0 then
+          table.insert(pairs, {
+            index = index,
+            name = filename(file.filepath),
+            video = file.filepath,
+            srt = srt,
+            duration = info.total_time,
+          })
+        end
+      end
+    end
   end
-  return true
+
+  if #pairs == 0 then return end
+  table.sort(pairs, function(a, b) return a.name:lower() < b.name:lower() end)
+  local alias = write_alias(pairs, project)
+  if not alias then return end
+
+  -- Remove only the videos handled by this alias.  Any unrelated files remain
+  -- in the list for AviUtl2's ordinary input path.
+  for _, pair in ipairs(pairs) do handled[#handled + 1] = pair.index end
+  table.sort(handled, function(a, b) return a > b end)
+  for _, index in ipairs(handled) do table.remove(files, index) end
+  table.insert(files, { filepath = alias, mimetype = "", temporary = true })
 end
 
 return M
