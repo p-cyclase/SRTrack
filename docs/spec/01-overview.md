@@ -4,10 +4,10 @@
 
 | 要素 | 責務 | 状態 |
 | --- | --- | --- |
-| Exporter | テキスト、外部字幕準備 Object、SRT Object を統合して SRT を保存 | 標準テキスト、セリフ準備、初期配置された SRTrack Object に対応。高度な直上参照は後続課題 |
+| Exporter | テキスト、外部字幕準備 Object、SRT Object を統合して SRT を保存 | 最小実装済み。標準テキスト、セリフ準備、二種類の SRTrack Object、候補統合、選択範囲出力に対応。実機検証とブラッシュアップ中 |
 | Importer | 動画＋同名 SRT の組取込と SRT 単体取込を支援する | 初期版完成。設定で二つの入口を個別に停止できる |
-| SRTrack Object | 直上動画を参照して SRT を時間変換する主用途の Object | Object／Preview 初期版完成。Exporter の完全対応は後続課題 |
-| SRTrack Object (Standalone) | 自身の再生設定で SRT を時間変換する補助的な Object | Object／Preview 初期版完成。Exporter 出力は未対応 |
+| SRTrack Object | 直上動画を参照して SRT を時間変換する主用途の Object | Object／Preview 初期版完成。Exporter 最小実装も対応済み |
+| SRTrack Object (Standalone) | 自身の再生設定で SRT を時間変換する補助的な Object | Object／Preview 初期版完成。Exporter 最小実装も対応済み |
 | Preview モジュール | 編集画面専用の字幕・診断表示 | Object／Preview 初期版完成 |
 | SRTrack Importer 設定 | Importer の有効状態と単体 SRT ドロップの扱いを利用者単位で管理 | 初期版実装済み。再起動後に適用 |
 

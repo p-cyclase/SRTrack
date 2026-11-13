@@ -23,11 +23,13 @@ SRTrack は AviUtl ExEdit2 上の字幕ソースを統合し、編集後のタ�
 
 ## 実装状態
 
-現行実装は、二つの Object、Monitor 廃止、直上動画参照型の Preview、動画＋同名 SRT の組取込、SRT 単体取込、標準テキスト・セリフ準備・初期配置された SRTrack Object を扱う Exporter を含む。Object／Preview と Importer は初期版完成とする。Preview は動画と SRTrack Object の開始位置差を反映する。一方、Exporter の直上動画の途中切替、Object と動画の開始位置差、Standalone の出力は後続開発事項であり、対応済みとして扱わない。分割・伸縮・速度変更・ループを含む標準動画との完全一致、および網羅的な受け入れ試験も未完了である。
+現行実装は、二つの Object、Monitor 廃止、直上動画参照型の Preview、動画＋同名 SRT の組取込、SRT 単体取込、標準テキスト・セリフ準備・二種類の SRTrack Object を扱う Exporter を含む。Object／Preview と Importer は初期版完成とする。Preview と Exporter は、動画と SRTrack Object の開始位置差、直上動画の途中切替、Standalone の出力に対応する。Exporter は候補統合、短字幕結合、タイムライン選択範囲出力を含む最小実装を完了し、現在は実機検証とブラッシュアップ段階にある。分割・伸縮・速度変更・ループを含む標準動画との完全一致、および網羅的な受け入れ試験は未完了である。
 
 Object／Preview の初期版完成は、要求済みの機能を実装したことを意味する。複雑な編集条件との完全一致、対応環境での網羅試験、表示上の細部は、今後のバグフィクスと互換性確認として扱い、初期版の未実装項目とは扱わない。
 
 Importer の初期版完成も同じ意味である。動画ペア取込、SRT 単体取込、失敗時の通常入力への委譲、Importer 設定の再起動後反映を実装・概略確認済みとする。他プラグインとの広範な組合せや異常ファイルの網羅試験は、今後のバグフィクスと互換性確認に含める。
+
+Exporter は初期版完成とはまだ扱わない。最小実装は動作確認済みだが、選択範囲、同時開始と短字幕結合、直上動画の不在／再出現、標準動画との複雑な時間変換の実機確認を残している。これらを確認し、必要なバグフィクスを終えた時点で初期版完成を判断する。
 
 完成時の配布物は `SRTrack.aux2`、`SRTrack.lua`、`SRTrackObject.obj2`、`SRTrackObject(Standalone).obj2`、`SRTrack.mod2` の5ファイルとする。`SRTrack.aux2` は Exporter と Importer、`SRTrack.lua` は GCMZDrops2 ハンドラー、二つの Object と共通 Preview モジュールは Script 側に配置する。
 
