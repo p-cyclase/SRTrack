@@ -19,6 +19,7 @@ SRTrack は AviUtl ExEdit2 上の字幕ソースを統合し、編集後のタ�
 | [05-errors-and-validation.md](05-errors-and-validation.md) | エラー、互換性、検証計画 |
 | [06-importer.md](06-importer.md) | Importer の初期配置 |
 | [07-monitor.md](07-monitor.md) | Monitor 廃止方針 |
+| [08-settings.md](08-settings.md) | SRTrack 全体に適用する利用者設定 |
 
 ## 実装状態
 
