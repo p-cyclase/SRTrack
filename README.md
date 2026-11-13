@@ -27,7 +27,7 @@ SRT を動画へ焼き込むことは目的ではありません。編集用字�
 | Importer | 動画ドロップ時に同名 SRT を検出し、動画と SRTrack Object を配置・グループ化する | 初期実装済み、更新予定 |
 | Object / Preview | SRT の参照、編集用字幕プレビュー | 旧単一 Object 実装済み、二 Object 化予定 |
 
-配布物は `SRTrack.aux2`、`SRTrack.lua`、`SRTrack.obj2`、`SRTrackStandalone.obj2`、`SRTrack.mod2` の5ファイルです。二つの Object は同じ Preview モジュールを共有します。
+配布物は `SRTrack.aux2`、`SRTrack.lua`、`SRTrackObject.obj2`、`SRTrackObject(Standalone).obj2`、`SRTrack.mod2` の5ファイルです。二つの Object は同じ Preview モジュールを共有します。
 
 ## ドキュメント
 

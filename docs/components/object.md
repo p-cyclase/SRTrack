@@ -2,7 +2,7 @@
 
 > **履歴資料**：これは旧単一 SRTrack Object と Monitor を前提にした実装記録であり、現在の正規仕様ではない。次期仕様は [SRT Object と入力データ](../spec/02-srt-source.md) を正とする。
 
-> Object の実装は `src/object/SRTrack.obj2`、プレビュー補助モジュールの実装は `src/mod2/module.cpp` に置きます。配布名は `SRTrack.obj2` と `SRTrack.mod2` です。
+> Object の実装は `src/object/SRTrackObject.obj2` と `src/object/SRTrackObject(Standalone).obj2`、プレビュー補助モジュールの実装は `src/mod2/module.cpp` に置きます。配布名は `SRTrackObject.obj2`、`SRTrackObject(Standalone).obj2`、`SRTrack.mod2` です。
 
 SRTrack Object は、レンダリング済み動画に対応する SRT の参照と時間変換設定を保持するカスタムオブジェクトです。SRTrack Exporter が読み取る字幕ソースとして使います。必要なら、編集画面だけで現在の SRT 字幕を確認する補助プレビューを表示できます。
 
@@ -10,7 +10,8 @@ SRTrack Object は、レンダリング済み動画に対応する SRT の参照
 
 次の2ファイルをコピーして AviUtl2 を再起動します。
 
-- `out\Script\SRTrack\SRTrack.obj2` → `C:\ProgramData\aviutl2\Script\SRTrack\SRTrack.obj2`
+- `out\Script\SRTrack\SRTrackObject.obj2` → `C:\ProgramData\aviutl2\Script\SRTrack\SRTrackObject.obj2`
+- `out\Script\SRTrack\SRTrackObject(Standalone).obj2` → `C:\ProgramData\aviutl2\Script\SRTrack\SRTrackObject(Standalone).obj2`
 - `out\Script\SRTrack\SRTrack.mod2` → `C:\ProgramData\aviutl2\Script\SRTrack\SRTrack.mod2`
 
 `SRTrack.mod2` は、Unicode を含む SRT パスを読み込む編集用プレビューの補助モジュールです。Exporter を使わない場合も、プレビューを使うなら必要です。

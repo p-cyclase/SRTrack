@@ -14,7 +14,7 @@ GCMZDrops2 の公開ハンドラースクリプト API を通じ、動画ファ�
 
 GCMZDrops2、L-SMASH Works、SRTrack Object を導入した環境が必要です。`build.cmd` を実行して生成した `out\Plugin\SRTrack\SRTrack.aux2` と `SRTrack.lua` を、AviUtl2 の `Plugin\\SRTrack` など **SRTrack 専用の同じフォルダ**へコピーして AviUtl2 を再起動してください。GCMZDrops2 のフォルダへ SRTrack のファイルをコピーする必要はありません。
 
-完成時の配布では、`SRTrack.aux2` と `SRTrack.lua` を同じ SRTrack 専用フォルダへ置きます。Object 側は `SRTrack.obj2` と `SRTrack.mod2` を Script フォルダへ置きます。
+完成時の配布では、`SRTrack.aux2` と `SRTrack.lua` を同じ SRTrack 専用フォルダへ置きます。Object 側は `SRTrackObject.obj2`、`SRTrackObject(Standalone).obj2`、`SRTrack.mod2` を Script フォルダへ置きます。
 
 `SRTrack.aux2` は、GCMZDrops2 が公開している `AddHandlerScriptFile` だけを使い、同じ SRTrack フォルダ内の `SRTrack.lua` を起動時に登録します。GCMZDrops2 が導入・有効化されていない場合は、通常の動画ドロップに介入しません。
 

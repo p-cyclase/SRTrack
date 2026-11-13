@@ -6,8 +6,8 @@ SRTrack は、一つの Object に動画追従と手動再生設定を同居さ�
 
 | Object | 時間変換の基準 | 主な用途 | 状態 |
 | --- | --- | --- | --- |
-| SRTrack Object | 同じ時刻に直上レイヤーにある標準 `動画ファイル` Object | レンダリング済み動画と対応する SRT | `SRTrack.obj2`、初期実装・簡易確認済み |
-| SRTrack Object (Standalone) | Object 自身の再生開始位置と速度 | 動画と独立した SRT の配置 | `SRTrackStandalone.obj2`、初期実装 |
+| SRTrack Object | 同じ時刻に直上レイヤーにある標準 `動画ファイル` Object | レンダリング済み動画と対応する SRT | `SRTrackObject.obj2`、初期実装・簡易確認済み |
+| SRTrack Object (Standalone) | Object 自身の再生開始位置と速度 | 動画と独立した SRT の配置 | `SRTrackObject(Standalone).obj2`、初期実装 |
 
 両者は SRT ファイルを読み、Exporter の字幕ソースになり、編集用字幕プレビューを任意に表示する。プレビューは確認専用であり、動画書き出し中は描画しない。Exporter の統合・結合・オフセット結果とプレビュー表示の一致は要件にしない。
 
@@ -36,3 +36,12 @@ Lua API で標準動画の再生範囲として直接取得できるのは開始
 初期版は UTF-8 を対象とする。BOM の有無、CRLF／LF、末尾空行、複数行本文を検証対象にする。各字幕は開始時刻、終了時刻（整数ミリ秒）、本文、元ファイル内順序へ解析する。内部区間は `[開始, 終了)` とする。
 
 不正 UTF-8、不正時刻、番号欠落・重複、時刻順でない字幕、重複区間、本文の空行やタグ、大きいファイル、相対パス、外部更新の扱いは継続検討する。曖昧な入力を黙って変更しない。
+
+## 2.6 追加メニューと Preview
+
+Object 追加メニューでは、二つの Object を `SRTrack` の下へまとめる。
+
+- `SRTrack` → `SRTrack Object`
+- `SRTrack` → `SRTrack Object (Standalone)`
+
+両方とも `字幕プレビュー` を持つ。`SRTrack Object` は直上動画の開始位置・速度・ループと開始位置差を用いる。`SRTrack Object (Standalone)` は自身が保持する再生位置・速度と Object 内時刻だけを用いる。いずれも Preview は編集画面専用で、動画出力には描画しない。
