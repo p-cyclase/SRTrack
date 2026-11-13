@@ -12,7 +12,14 @@ struct Caption { int layer; int start; int end; std::string text; }; // end excl
 struct Block { int start; int end; std::string text; };
 struct TimedBlock { int64_t start, end; std::string text; };
 struct SrtCaption { int64_t start, end; std::string text; size_t order; };
-struct SourceTimedCaption { int64_t start, end; std::string text; bool preserve_end; };
+struct SourceTimedCaption {
+    int64_t start, end;
+    std::string text;
+    // Smaller layer numbers are visually higher in AviUtl2.  Equal-start
+    // events are processed from Layer 1 downward; this is not winner-takes-all.
+    int layer = 0;
+    size_t order = 0;
+};
 
 inline bool parse_srt_timestamp(const std::string& value, int64_t& result) {
     size_t p = 0;
@@ -135,9 +142,28 @@ inline std::vector<TimedBlock> map_looped_srt_to_scene(const std::vector<SrtCapt
     return out;
 }
 
+// Map one intersection of an SRTrack Object and the video directly above it.
+// The source time is deliberately based on the video's timeline start, not
+// the SRTrack Object's start, matching the Preview calculation.
+inline std::vector<TimedBlock> map_video_bound_srt_segment(
+    const std::vector<SrtCaption>& captions, int64_t scene_start, int64_t scene_end,
+    int64_t video_start, int64_t playback_start,
+    double speed, bool loop, int64_t source_duration) {
+    if (scene_end <= scene_start || speed <= 0) return {};
+    const int64_t source_start = playback_start +
+        static_cast<int64_t>(std::llround(speed * (scene_start - video_start)));
+    if (loop) {
+        return map_looped_srt_to_scene(captions, scene_start, scene_end,
+                                       source_start, source_duration, speed);
+    }
+    return map_srt_to_scene(captions, scene_start, scene_end, source_start, speed);
+}
+
 inline std::vector<TimedBlock> integrate_timeline(std::vector<SourceTimedCaption> captions) {
     std::stable_sort(captions.begin(), captions.end(), [](const SourceTimedCaption& a, const SourceTimedCaption& b) {
-        return a.start < b.start;
+        if (a.start != b.start) return a.start < b.start;
+        if (a.layer != b.layer) return a.layer < b.layer;
+        return a.order < b.order;
     });
     std::vector<TimedBlock> out;
     bool active = false;
@@ -145,8 +171,12 @@ inline std::vector<TimedBlock> integrate_timeline(std::vector<SourceTimedCaption
     for (const auto& next : captions) {
         if (next.end <= next.start || next.text.empty()) continue;
         if (active) {
-            int64_t end = current.preserve_end ? std::min(current.end, next.start) : next.start;
-            if (end > current.start) out.push_back({current.start, end, current.text});
+            // A later start interrupts the active caption, while the active
+            // caption's own end still creates a blank interval when earlier.
+            const int64_t end = std::min(current.end, next.start);
+            // Equal-start captions are intentionally retained as zero-length
+            // blocks.  The short-caption pass decides how to combine them.
+            if (end >= current.start) out.push_back({current.start, end, current.text});
         }
         current = next;
         active = true;
@@ -155,18 +185,37 @@ inline std::vector<TimedBlock> integrate_timeline(std::vector<SourceTimedCaption
     return out;
 }
 
+inline std::vector<TimedBlock> clip_and_rebase_timeline(
+    const std::vector<TimedBlock>& blocks, int64_t range_start, int64_t range_end) {
+    std::vector<TimedBlock> out;
+    if (range_end <= range_start) return out;
+    for (const auto& block : blocks) {
+        if (block.end == block.start) {
+            if (block.start >= range_start && block.start < range_end)
+                out.push_back({block.start - range_start, block.end - range_start, block.text});
+            continue;
+        }
+        const int64_t start = std::max(block.start, range_start);
+        const int64_t end = std::min(block.end, range_end);
+        if (end > start) out.push_back({start - range_start, end - range_start, block.text});
+    }
+    return out;
+}
+
 inline std::vector<TimedBlock> merge_timed_blocks(const std::vector<TimedBlock>& raw,
                                                    int64_t threshold_ms, int64_t final_min_ms) {
     std::vector<TimedBlock> out;
     for (size_t i = 0; i < raw.size();) {
         TimedBlock block = raw[i++];
-        while (block.end - block.start <= threshold_ms && i < raw.size()) {
-            block.text += "\n" + raw[i].text;
+        while (block.end - block.start < threshold_ms && i < raw.size()) {
+            // A short caption becomes the leading text of the immediately
+            // following caption.  No separator is inserted in the initial UI.
+            block.text += raw[i].text;
             block.end = raw[i++].end;
         }
-        if (i == raw.size() && block.end - block.start <= threshold_ms)
+        if (i == raw.size() && block.end - block.start < threshold_ms)
             block.end = std::max(block.end, block.start + final_min_ms);
-        out.push_back(block);
+        if (block.end > block.start) out.push_back(std::move(block));
     }
     return out;
 }
