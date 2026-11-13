@@ -25,7 +25,7 @@ SRTrack は、旧単一 Object の役割を二つの Object に分けていま�
 | --- | --- | --- |
 | Exporter | タイムライン上の字幕ソースを集め、SRT を出力する | 標準テキスト、セリフ準備、初期配置された SRTrack Object を扱う。高度な直上動画参照は後続課題 |
 | Importer | 動画ドロップ時に同名 SRT を検出し、動画と SRTrack Object を配置・グループ化する | 調査・安定化中 |
-| Object / Preview | SRT の参照、編集用字幕プレビュー | 二 Object と両方の Preview を実装済み |
+| Object / Preview | SRT の参照、編集用字幕プレビュー | 初期版完成。細部は今後のバグフィクス・互換性確認で扱う |
 
 配布物は `SRTrack.aux2`、`SRTrack.lua`、`SRTrackObject.obj2`、`SRTrackObject(Standalone).obj2`、`SRTrack.mod2` の5ファイルです。二つの Object は同じ Preview モジュールを共有します。
 
