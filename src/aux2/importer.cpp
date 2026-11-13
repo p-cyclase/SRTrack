@@ -16,6 +16,59 @@ using AddHandlerScriptFile = bool(__cdecl*)(LPCWSTR filepath);
 
 HINSTANCE module_instance = nullptr;
 bool registered = false;
+constexpr wchar_t registry_key[] = L"Software\\SRTrack";
+
+struct ImporterSettings {
+  bool video_pair = true;
+  bool srt_drop = true;
+  bool standalone = false;
+};
+
+ImporterSettings importer_settings;
+
+bool read_dword(HKEY key, const wchar_t* name, bool fallback) {
+  DWORD type = 0, value = 0, size = sizeof(value);
+  if (RegQueryValueExW(key, name, nullptr, &type,
+                       reinterpret_cast<BYTE*>(&value), &size) != ERROR_SUCCESS ||
+      type != REG_DWORD || size != sizeof(value)) {
+    return fallback;
+  }
+  return value != 0;
+}
+
+void load_importer_settings() {
+  ImporterSettings loaded;
+  HKEY key = nullptr;
+  if (RegOpenKeyExW(HKEY_CURRENT_USER, registry_key, 0, KEY_QUERY_VALUE,
+                    &key) != ERROR_SUCCESS) {
+    importer_settings = loaded;
+    return;
+  }
+  loaded.video_pair = read_dword(key, L"importer_video_pair", loaded.video_pair);
+  loaded.srt_drop = read_dword(key, L"importer_srt_drop", loaded.srt_drop);
+  loaded.standalone = read_dword(key, L"importer_srt_standalone", loaded.standalone);
+  RegCloseKey(key);
+  importer_settings = loaded;
+}
+
+bool save_importer_settings(const ImporterSettings& settings) {
+  HKEY key = nullptr;
+  if (RegCreateKeyExW(HKEY_CURRENT_USER, registry_key, 0, nullptr, 0,
+                      KEY_SET_VALUE, nullptr, &key, nullptr) != ERROR_SUCCESS) {
+    return false;
+  }
+  const auto put = [key](const wchar_t* name, bool value) {
+    const DWORD stored = value ? 1 : 0;
+    return RegSetValueExW(key, name, 0, REG_DWORD,
+                          reinterpret_cast<const BYTE*>(&stored),
+                          sizeof(stored)) == ERROR_SUCCESS;
+  };
+  const bool ok = put(L"importer_video_pair", settings.video_pair) &&
+                  put(L"importer_srt_drop", settings.srt_drop) &&
+                  put(L"importer_srt_standalone", settings.standalone);
+  RegCloseKey(key);
+  return ok;
+}
 
 std::string wide_to_utf8(const wchar_t* value) {
   if (!value || !*value) return {};
@@ -76,16 +129,70 @@ void on_srt_file_drop(EDIT_SECTION* edit, LPCWSTR file) {
   std::string path = wide_to_utf8(file);
   if (path.empty() || path.find_first_of("\r\n") != std::string::npos) return;
   const int length = srt_length_frames(file, edit->info);
-  OBJECT_HANDLE object = edit->create_object(L"SRTrackObject", edit->info->layer,
+  const wchar_t* effect = importer_settings.standalone
+      ? L"SRTrackObject(Standalone)" : L"SRTrackObject";
+  OBJECT_HANDLE object = edit->create_object(effect, edit->info->layer,
                                               edit->info->frame, length);
   if (!object) return;
   // This is intentionally not an alias: a lone SRT has no paired media or
   // group structure to reproduce.  It is the same Object a user can insert
   // from AviUtl2's Object menu, with only its initial values supplied here.
-  edit->set_object_item_value(object, L"SRTrackObject", L"SRT ファイル",
-                              path.c_str());
-  edit->set_object_item_value(object, L"SRTrackObject", L"動画全長", "0.000");
-  edit->set_object_item_value(object, L"SRTrackObject", L"字幕プレビュー", "1");
+  edit->set_object_item_value(object, effect, L"SRT ファイル", path.c_str());
+  if (!importer_settings.standalone) {
+    edit->set_object_item_value(object, effect, L"動画全長", "0.000");
+  }
+  edit->set_object_item_value(object, effect, L"字幕プレビュー", "1");
+}
+
+void enable_srt_object_choices(HWND dialog) {
+  const BOOL enabled = IsDlgButtonChecked(dialog, 2002) == BST_CHECKED;
+  EnableWindow(GetDlgItem(dialog, 2003), enabled);
+  EnableWindow(GetDlgItem(dialog, 2004), enabled);
+}
+
+INT_PTR CALLBACK importer_settings_dialog(HWND dialog, UINT message,
+                                           WPARAM wparam, LPARAM) {
+  switch (message) {
+    case WM_INITDIALOG:
+      CheckDlgButton(dialog, 2001, importer_settings.video_pair ? BST_CHECKED : BST_UNCHECKED);
+      CheckDlgButton(dialog, 2002, importer_settings.srt_drop ? BST_CHECKED : BST_UNCHECKED);
+      CheckRadioButton(dialog, 2003, 2004,
+                       importer_settings.standalone ? 2004 : 2003);
+      enable_srt_object_choices(dialog);
+      return TRUE;
+    case WM_COMMAND:
+      if (LOWORD(wparam) == 2002) {
+        enable_srt_object_choices(dialog);
+        return TRUE;
+      }
+      if (LOWORD(wparam) == IDOK) {
+        ImporterSettings next;
+        next.video_pair = IsDlgButtonChecked(dialog, 2001) == BST_CHECKED;
+        next.srt_drop = IsDlgButtonChecked(dialog, 2002) == BST_CHECKED;
+        next.standalone = IsDlgButtonChecked(dialog, 2004) == BST_CHECKED;
+        if (!save_importer_settings(next)) {
+          MessageBoxW(dialog, L"Importer 設定を保存できませんでした。",
+                      L"SRTrack Importer 設定", MB_ICONERROR);
+          return TRUE;
+        }
+        EndDialog(dialog, IDOK);
+        return TRUE;
+      }
+      if (LOWORD(wparam) == IDCANCEL) {
+        EndDialog(dialog, IDCANCEL);
+        return TRUE;
+      }
+      break;
+    case WM_CLOSE:
+      EndDialog(dialog, IDCANCEL);
+      return TRUE;
+  }
+  return FALSE;
+}
+
+void open_importer_settings(HWND hwnd, HINSTANCE dll_hinst) {
+  DialogBoxParamW(dll_hinst ? dll_hinst : module_instance,
+                  MAKEINTRESOURCEW(102), hwnd, importer_settings_dialog, 0);
 }
 
 bool get_script_path(wchar_t* path, DWORD capacity) {
@@ -116,11 +223,16 @@ void register_handler_script() {
 
 void initialize_importer(HINSTANCE instance) { module_instance = instance; }
 void register_importer(HOST_APP_TABLE* host) {
-  register_handler_script();
-  // Register only .srt here. Video media remains exclusively on AviUtl2's
-  // normal input-plugin path, where GCMZDrops2 replaces matching pairs.
-  if (host && host->register_file_drop_handler) {
+  load_importer_settings();
+  if (!host) return;
+  // Each entrance is registered independently. Disabled entrances do not
+  // participate in the host's file-drop dispatch at all.
+  if (importer_settings.video_pair) register_handler_script();
+  if (importer_settings.srt_drop && host->register_file_drop_handler) {
     host->register_file_drop_handler(L"SRTrack SRT", L"SRT 字幕 (*.srt)\0*.srt\0\0",
                                      on_srt_file_drop);
+  }
+  if (host->register_config_menu) {
+    host->register_config_menu(L"SRTrack Importer 設定…", open_importer_settings);
   }
 }

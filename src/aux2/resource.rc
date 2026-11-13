@@ -24,3 +24,18 @@ BEGIN
     PUSHBUTTON "次へ", 1020, 173, 260, 50, 14
     PUSHBUTTON "キャンセル", IDCANCEL, 230, 260, 50, 14
 END
+
+102 DIALOGEX 0, 0, 292, 141
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "SRTrack Importer 設定"
+FONT 9, "Yu Gothic UI"
+BEGIN
+    AUTOCHECKBOX "動画ファイルドロップ時、同名の SRT ファイルがあれば読み込む", 2001, 10, 10, 270, 12
+    GROUPBOX "SRT ファイル単体のドロップ", -1, 8, 30, 276, 49
+    AUTOCHECKBOX "次の Object として読み込む", 2002, 17, 43, 150, 12
+    AUTORADIOBUTTON "SRTrack Object", 2003, 31, 57, 110, 12, WS_GROUP
+    AUTORADIOBUTTON "SRTrack Object (Standalone)", 2004, 148, 57, 130, 12
+    LTEXT "取込設定の変更は、AviUtl2 を再起動した後のファイルドロップから反映されます。", -1, 10, 91, 272, 20
+    DEFPUSHBUTTON "OK", IDOK, 174, 117, 50, 14
+    PUSHBUTTON "キャンセル", IDCANCEL, 232, 117, 50, 14
+END

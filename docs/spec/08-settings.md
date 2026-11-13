@@ -1,10 +1,10 @@
-# 8. SRTrack Importer 設定（実装予定）
+# 8. SRTrack Importer 設定
 
 ## 8.1 目的と初期範囲
 
 SRTrack Importer は外部の入力プラグインと同じファイルドロップ経路を利用する。そのため、利用者が Importer の二つの入口を個別に停止し、SRTrack をドロップ処理から完全に外せる退避経路を設ける。
 
-最初に実装する設定画面は `SRTrack Importer 設定…` とし、Importer の項目だけを表示する。Exporter や Object の設定はこの画面の対象外とする。
+現行の設定画面は `SRTrack Importer 設定…` とし、Importer の項目だけを表示する。Exporter や Object の設定はこの画面の対象外とする。
 
 ## 8.2 設定項目
 
