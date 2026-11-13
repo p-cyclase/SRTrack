@@ -1,0 +1,47 @@
+--label:SRTrack Object (Standalone)
+--information:SRTrack Object (Standalone) 0.1 by p_cyclase
+--file@file:SRT ファイル
+--track@position:再生位置,0,86400,0,0.001
+--track@speed:再生速度,0.01,1000,100,0.01
+--check@preview:字幕プレビュー,true
+
+local function draw(text, color)
+    obj.setfont("MS UI Gothic", 48, 3, color or 0xffffff, 0x400000, true)
+    obj.load("text", text, 0, 0, 4)
+    obj.draw()
+end
+local function clear() obj.load("text", ""); obj.draw() end
+local function timestamp(value)
+    local h,m,s,ms=value:match("^%s*(%d+):(%d+):(%d+)[,.](%d+)%s*$")
+    h,m,s,ms=tonumber(h),tonumber(m),tonumber(s),tonumber(ms)
+    if not h or not m or not s or not ms or m>=60 or s>=60 then return nil end
+    if #value:match("[,.](%d+)%s*$") == 1 then ms=ms*100 elseif #value:match("[,.](%d+)%s*$") == 2 then ms=ms*10 end
+    return ((h*60+m)*60+s)*1000+ms
+end
+local function captions(bytes)
+    local out={}; bytes=bytes:gsub("^\239\187\191",""):gsub("\r\n","\n"):gsub("\r","\n")
+    for block in (bytes.."\n\n"):gmatch("(.-)\n\n") do
+        local left,right,text=block:match(".-([%d:,%.%s]+)%s*%-%-%>%s*([%d:,%.%s]+)\n(.+)")
+        local a,b=left and timestamp(left),right and timestamp(right)
+        if a and b and b>a and text and text~="" then out[#out+1]={a=a,b=b,text=text} end
+    end
+    return out
+end
+if obj.getinfo("saving") or not preview then clear()
+elseif not file or file=="" then draw("[SRTrack] SRT ファイルが指定されていません",0xff8080)
+elseif not speed or speed<=0 then draw("[SRTrack] SRT 再生速度は正の値にしてください",0xff8080)
+else
+    local key="__srtrack_standalone_"..obj.id
+    if global[key.."_path"]~=file then
+        global[key.."_path"]=file
+        local ok,module=pcall(function() return obj.module("SRTrack") end)
+        local read_ok,bytes=ok and pcall(module.read_utf8_file,file)
+        global[key.."_bytes"]=read_ok and bytes or ""; global[key.."_error"]=read_ok and "" or tostring(bytes)
+    end
+    local err=global[key.."_error"] or ""
+    if err~="" then draw("[SRTrack] "..err,0xff8080) else
+        local now=position*1000+(speed/100)*obj.time*1000; local text={}
+        for _,c in ipairs(captions(global[key.."_bytes"] or "")) do if c.a<=now and now<c.b then text[#text+1]=c.text end end
+        if #text==0 then clear() else draw(table.concat(text,"\n")) end
+    end
+end

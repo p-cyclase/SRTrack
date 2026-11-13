@@ -1,13 +1,7 @@
 --label:SRTrack
---information:SRTrack Object 0.4 by p_cyclase
+--information:SRTrack Object 0.5 by p_cyclase
 --file@file:SRT ファイル
---track@position:再生位置,0,86400,0,0.001
---track@end_position:再生範囲終端,0,86400,86400,0.001
---trackgroup@position,end_position:再生位置
 --track@source_duration:動画全長,0,86400,0,0.001
---track@speed:再生速度,0.01,1000,100,0.01
---check@loop:ループ再生,false
---check@monitor:動画同期,false
 --check@preview:字幕プレビュー,true
 
 -- SRTrack Object keeps SRT timing metadata for SRTrack Exporter.
@@ -98,9 +92,20 @@ if obj.getinfo("saving") or not preview then
     clear_preview()
 elseif not file or file == "" then
     draw_preview("[SRTrack] SRT ファイルが指定されていません", 0xff8080, 0x400000)
-elseif not speed or speed <= 0 then
-    draw_preview("[SRTrack] SRT 再生速度は正の値にしてください", 0xff8080, 0x400000)
 else
+    local ok, module = pcall(function() return obj.module("SRTrack") end)
+    local state_ok, state = ok and pcall(module.direct_video_state, tostring(obj.id), obj.frame)
+    if not state_ok then
+        draw_preview("[SRTrack] " .. tostring(state), 0xff8080, 0x400000)
+        return
+    end
+    local position, end_position, speed, loop_value = state:match("^([^|]+)|([^|]+)|([^|]+)|([^|]+)$")
+    position, end_position, speed = tonumber(position), tonumber(end_position), tonumber(speed)
+    local loop = loop_value == "1" or loop_value == "true"
+    if not position or not end_position or not speed or speed <= 0 then
+        draw_preview("[SRTrack] 直上動画の再生設定を取得できません", 0xff8080, 0x400000)
+        return
+    end
     local cache_prefix = "__srtrack_preview_" .. obj.id
     local path_key = cache_prefix .. "_path"
     local bytes_key = cache_prefix .. "_bytes"

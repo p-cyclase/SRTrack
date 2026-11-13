@@ -1,32 +1,15 @@
 #include <windows.h>
+#include <cerrno>
+#include <cstdint>
+#include <cstdlib>
 #include <string>
+#include "../../third_party/aviutl2-sdk/plugin2.h"
 #include "../../third_party/aviutl2-sdk/module2.h"
 
-static bool utf8_to_wide(const char* input, std::wstring& output) {
-    if (!input) return false;
-    const int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, input, -1, nullptr, 0);
-    if (!length) return false;
-    output.resize(static_cast<size_t>(length));
-    if (!MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, input, -1, output.data(), length)) return false;
-    output.pop_back();
-    return true;
-}
-
-static void read_utf8_file(SCRIPT_MODULE_PARAM* param) {
-    std::wstring path;
-    if (!utf8_to_wide(param->get_param_string(0), path) || path.empty()) { param->set_error(u8"SRT ファイルのパスが不正です"); return; }
-    HANDLE file = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (file == INVALID_HANDLE_VALUE) { param->set_error(u8"SRT ファイルを読み込めません"); return; }
-    LARGE_INTEGER size{};
-    if (!GetFileSizeEx(file, &size) || size.QuadPart < 0 || size.QuadPart > 16 * 1024 * 1024) { CloseHandle(file); param->set_error(u8"SRT ファイルのサイズを取得できないか、大きすぎます"); return; }
-    std::string bytes(static_cast<size_t>(size.QuadPart), '\0');
-    DWORD read = 0;
-    const bool ok = bytes.empty() || (ReadFile(file, bytes.data(), static_cast<DWORD>(bytes.size()), &read, nullptr) && read == bytes.size());
-    CloseHandle(file);
-    if (!ok || bytes.find('\0') != std::string::npos) { param->set_error(u8"SRT ファイルの内容を取得できません"); return; }
-    param->push_result_string(bytes.c_str());
-}
-
-static SCRIPT_MODULE_FUNCTION functions[] = {{L"read_utf8_file", read_utf8_file}, {nullptr, nullptr}};
-static SCRIPT_MODULE_TABLE module_table = {L"SRTrack Module 0.1 by p_cyclase", functions};
-extern "C" __declspec(dllexport) SCRIPT_MODULE_TABLE* GetScriptModuleTable() { return &module_table; }
+static bool utf8_to_wide(const char* in,std::wstring& out){if(!in)return false;int n=MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,in,-1,nullptr,0);if(!n)return false;out.resize(n);if(!MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,in,-1,out.data(),n))return false;out.pop_back();return true;}
+static void read_utf8_file(SCRIPT_MODULE_PARAM* p){std::wstring path;if(!utf8_to_wide(p->get_param_string(0),path)||path.empty()){p->set_error(u8"SRT ファイルのパスが不正です");return;}HANDLE f=CreateFileW(path.c_str(),GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);if(f==INVALID_HANDLE_VALUE){p->set_error(u8"SRT ファイルを読み込めません");return;}LARGE_INTEGER size{};if(!GetFileSizeEx(f,&size)||size.QuadPart<0||size.QuadPart>16*1024*1024){CloseHandle(f);p->set_error(u8"SRT ファイルのサイズを取得できないか、大きすぎます");return;}std::string bytes(size_t(size.QuadPart),'\0');DWORD read=0;bool ok=bytes.empty()||(ReadFile(f,bytes.data(),DWORD(bytes.size()),&read,nullptr)&&read==bytes.size());CloseHandle(f);if(!ok||bytes.find('\0')!=std::string::npos){p->set_error(u8"SRT ファイルの内容を取得できません");return;}p->push_result_string(bytes.c_str());}
+static bool parse_id(const char* text,int64_t& id){if(!text||!*text)return false;char* end=nullptr;errno=0;id=_strtoi64(text,&end,10);return !errno&&end&&!*end;}
+static void direct_video_state(SCRIPT_MODULE_PARAM* p){int64_t wanted=0;if(!parse_id(p->get_param_string(0),wanted)||!p->edit||!p->edit->info){p->set_error(u8"SRTrack Object を特定できません");return;}EDIT_SECTION* e=p->edit;OBJECT_LAYER_FRAME owner{};bool found=false;for(int layer=0;layer<=e->info->layer_max&&!found;++layer)for(int frame=0;frame<=e->info->frame_max;){auto o=e->find_object(layer,frame);if(!o)break;auto loc=e->get_object_layer_frame(o);if(loc.layer!=layer||loc.end<frame)break;if(e->get_object_id(o)==wanted){owner=loc;found=true;break;}frame=loc.end+1;}int frame=owner.start+p->get_param_int(1);if(!found||owner.layer<=0||frame<owner.start||frame>owner.end){p->set_error(u8"直上レイヤーに動画 Object がありません");return;}auto video=e->find_object(owner.layer-1,frame);if(!video||e->count_object_effect(video,L"動画ファイル")==0){p->set_error(u8"直上レイヤーに動画 Object がありません");return;}auto loc=e->get_object_layer_frame(video);if(frame<loc.start||frame>loc.end){p->set_error(u8"直上レイヤーに動画 Object がありません");return;}const char* range=e->get_object_item_value(video,L"動画ファイル",L"再生位置");const char* speed=e->get_object_item_value(video,L"動画ファイル",L"再生速度");const char* loop=e->get_object_item_value(video,L"動画ファイル",L"ループ再生");if(!range||!speed||!loop){p->set_error(u8"直上動画の再生設定を取得できません");return;}std::string r=range;size_t a=r.find(','),b=a==std::string::npos?std::string::npos:r.find(',',a+1);if(a==std::string::npos||b==std::string::npos){p->set_error(u8"直上動画の再生設定を取得できません");return;}p->push_result_string((r.substr(0,a)+"|"+r.substr(a+1,b-a-1)+"|"+speed+"|"+loop).c_str());}
+static SCRIPT_MODULE_FUNCTION functions[]={{L"read_utf8_file",read_utf8_file},{L"direct_video_state",direct_video_state},{nullptr,nullptr}};
+static SCRIPT_MODULE_TABLE table={L"SRTrack Module 0.2 by p_cyclase",functions};
+extern "C" __declspec(dllexport) SCRIPT_MODULE_TABLE* GetScriptModuleTable(){return &table;}
