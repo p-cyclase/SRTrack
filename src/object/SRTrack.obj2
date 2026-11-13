@@ -88,22 +88,41 @@ local function clear_preview()
     obj.draw()
 end
 
+-- obj.getvalue(layer, ...) reads the Object present on that layer at the
+-- current frame.  This is intentionally a Lua-side lookup: script modules
+-- are not supplied an EDIT_SECTION while an Object is being rendered.
+local function direct_video_state()
+    if not obj.layer or obj.layer <= 1 then
+        return nil, "直上レイヤーに動画 Object がありません"
+    end
+    local video_layer = obj.layer - 1
+    -- Lua exposes the left (start) handle of the built-in video's playback
+    -- range.  The right handle is represented by the video Object's timeline
+    -- length, which the paired SRTrack Object shares; it therefore needs no
+    -- separate value for Preview.
+    local range = obj.getvalue(video_layer, "動画ファイル", "再生位置")
+    local speed = obj.getvalue(video_layer, "動画ファイル", "再生速度")
+    local loop_value = obj.getvalue(video_layer, "動画ファイル", "ループ再生")
+    if range == nil or speed == nil or loop_value == nil then
+        return nil, "直上レイヤーに動画 Object がありません"
+    end
+    local position = tonumber(range)
+    speed = tonumber(speed)
+    if not position or not speed or speed == 0 then
+        return nil, "直上動画の再生設定を取得できません"
+    end
+    local loop = loop_value == true or loop_value == 1 or loop_value == "1" or loop_value == "true"
+    return { position = position, speed = speed, loop = loop }
+end
+
 if obj.getinfo("saving") or not preview then
     clear_preview()
 elseif not file or file == "" then
     draw_preview("[SRTrack] SRT ファイルが指定されていません", 0xff8080, 0x400000)
 else
-    local ok, module = pcall(function() return obj.module("SRTrack") end)
-    local state_ok, state = ok and pcall(module.direct_video_state, tostring(obj.id), obj.frame)
-    if not state_ok then
-        draw_preview("[SRTrack] " .. tostring(state), 0xff8080, 0x400000)
-        return
-    end
-    local position, end_position, speed, loop_value = state:match("^([^|]+)|([^|]+)|([^|]+)|([^|]+)$")
-    position, end_position, speed = tonumber(position), tonumber(end_position), tonumber(speed)
-    local loop = loop_value == "1" or loop_value == "true"
-    if not position or not end_position or not speed or speed <= 0 then
-        draw_preview("[SRTrack] 直上動画の再生設定を取得できません", 0xff8080, 0x400000)
+    local state, state_error = direct_video_state()
+    if not state then
+        draw_preview("[SRTrack] " .. state_error, 0xff8080, 0x400000)
         return
     end
     local cache_prefix = "__srtrack_preview_" .. obj.id
@@ -126,9 +145,9 @@ else
         if #captions == 0 and bytes ~= "" then
             draw_preview("[SRTrack] 有効な SRT 字幕が見つかりません", 0xff8080, 0x400000)
         else
-            local source_time = position * 1000 + (speed / 100) * obj.time * 1000
-            local in_range = source_time < end_position * 1000
-            if loop then
+            local source_time = state.position * 1000 + (state.speed / 100) * obj.time * 1000
+            local in_range = true
+            if state.loop then
                 if not source_duration or source_duration <= 0 then
                     draw_preview("[SRTrack] ループ再生には動画全長が必要です", 0xff8080, 0x400000)
                     return
