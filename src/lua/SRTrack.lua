@@ -58,6 +58,23 @@ local function replace_file_list(destination, source)
   end
 end
 
+local function importer_settings()
+  local ok, module = pcall(gcmz.get_script_module, "SRTrackImporterConfig")
+  if not ok or not module or not module.auto_import_enabled or
+      not module.single_srt_drop_mode then
+    -- Missing configuration bridge is treated as disabled.  A broken or
+    -- partially installed SRTrack must not claim a user's media drop.
+    return false, 0
+  end
+  local enabled_ok, enabled = pcall(module.auto_import_enabled)
+  local mode_ok, mode = pcall(module.single_srt_drop_mode)
+  if not enabled_ok or enabled ~= true or not mode_ok then
+    return false, 0
+  end
+  if mode ~= 1 and mode ~= 2 then mode = 0 end
+  return true, mode
+end
+
 local function append_standard_drawing(lines, effect_name, audio)
   table.insert(lines, effect_name)
   table.insert(lines, "X=0.00")
@@ -151,6 +168,8 @@ local function write_grouped_alias(pairs, project)
 end
 
 function M.drag_enter(files, state)
+  local enabled = importer_settings()
+  if not enabled then return false end
   for _, file in ipairs(files) do
     local ext = extension(file.filepath)
     -- Do not maintain a second extension list.  When a same-name SRT exists,
@@ -164,6 +183,8 @@ function M.drag_enter(files, state)
 end
 
 local function import_pairs(files, state)
+  local enabled = importer_settings()
+  if not enabled then return false end
   local project = gcmz.get_project_data()
   if not project or not project.rate or not project.scale or project.rate <= 0 or project.scale <= 0 then
     return false
