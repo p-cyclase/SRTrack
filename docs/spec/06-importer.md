@@ -45,13 +45,12 @@ SRTrack Object には、検出した SRT パス、元動画の長さを表す `�
 
 `.srt` 単体をドロップした場合、Importer は AviUtl2 SDK の Object 作成 API で `SRTrackObject` を直接一つ配置する。動画との組、グループ、複数 Object エイリアスを必要としないため、この経路で一時 `.object` エイリアスは生成しない。SRT の最大終了時刻を Object 長とし、有効な時刻を得られない場合は最小 1 フレームとする。
 
-この初期実装は、動画とグループ化せず、`動画全長 D` を `0` に設定する。直上動画が必要な `SRTrackObject` を配置するだけであり、Standalone Object にはしない。
+この初期実装は、動画とグループ化せず、`動画全長 D` を `0` に設定する。現行の固定動作は直上動画が必要な `SRTrackObject` を配置する。Importer 設定の実装後は、SRT 単体取込に限り `SRTrackObject(Standalone)` も選べるようにする。既定は `SRTrackObject` とする。
 
 ## 6.4 今回の実装範囲外
 
 次の項目は Importer の最低限の取込を安定させるまで努力目標とし、現在の完成条件に含めない。
 
-- SRTrack 全体設定、Importer のオン・オフ、単体 SRT ドロップの設定
 - Object 表示名の SRT ファイル名への変更
 - 同名 SRT がない場合の個別通知や追加処理
 
