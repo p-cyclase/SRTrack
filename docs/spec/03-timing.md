@@ -20,7 +20,7 @@ Preview の初期実装はこの式を使う。Lua API から SRTrack Object と
 
 ## 3.3 SRTrack Object (Standalone)
 
-SRTrack Object (Standalone) の開始時刻を `A`、保持する再生開始位置を `P`、速度倍率を `v` とすると、`s = P + v × (T - A)` である。SRT の最終字幕以降は空表示とし、Object 自身のタイムライン範囲外には出力しない。ループと `D` は使わない。
+SRTrack Object (Standalone) の開始時刻を `A`、保持する再生開始位置を `P`、速度倍率を `v` とすると、`s = P + v × (T - A)` である。SRT の最終字幕以降は空表示とし、Object 自身のタイムライン範囲外には出力しない。ループと `D` は使わない。この変換式は Preview に実装済みで、Exporter への適用は後続開発事項である。
 
 ## 3.4 グループ化
 

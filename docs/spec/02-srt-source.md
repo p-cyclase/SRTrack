@@ -21,7 +21,7 @@ SRTrack Object は動画に付随する主用途の字幕側 Object である。
 
 ## 2.3 SRTrack Object (Standalone)
 
-SRTrack Object (Standalone) は動画を参照しない補助的な Object である。`SRT ファイル`、再生開始位置 `P`、再生速度、`字幕プレビュー` と Object 自身のタイムライン範囲を保持する。`E`、`D`、ループ再生、動画とのグループ関係は持たない。SRT の最終字幕を過ぎた後は字幕を表示・出力せず、途中で終了したい場合は Object の終端を使う。
+SRTrack Object (Standalone) は動画を参照しない補助的な Object である。`SRT ファイル`、再生開始位置 `P`、再生速度、`字幕プレビュー` と Object 自身のタイムライン範囲を保持する。`E`、`D`、ループ再生、動画とのグループ関係は持たない。SRT の最終字幕を過ぎた後は Preview を表示せず、途中で終了したい場合は Object の終端を使う。Exporter への出力対応は後続開発事項である。
 
 ## 2.4 SRTrack Object の参照失敗とプレビュー
 

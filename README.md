@@ -8,9 +8,9 @@ SRTrack は AviUtl2 で編集後の動画に対応する SRT 字幕を出力す�
 
 SRT を動画へ焼き込むことは目的ではありません。編集用字幕プレビューは補助機能であり、動画書き出しには反映されません。Exporter は動画を書き出さない通常の SRT エクスポーターで、保存済み `.aup2` の `output.file` を読める場合だけ同名 `.srt` を保存先候補として提案します。
 
-## 次期の Object モデル
+## Object モデル
 
-現在の単一 Object が兼ねていた役割を、二つの Object に分けます（名称は仮称です）。
+SRTrack は、旧単一 Object の役割を二つの Object に分けています。
 
 | Object | 役割 |
 | --- | --- |
@@ -23,9 +23,9 @@ SRT を動画へ焼き込むことは目的ではありません。編集用字�
 
 | 要素 | 役割 | 状態 |
 | --- | --- | --- |
-| Exporter | タイムライン上の字幕ソースを集め、SRT を出力する | 実装済み。新 Object 対応は次期実装 |
-| Importer | 動画ドロップ時に同名 SRT を検出し、動画と SRTrack Object を配置・グループ化する | 初期実装済み、更新予定 |
-| Object / Preview | SRT の参照、編集用字幕プレビュー | 旧単一 Object 実装済み、二 Object 化予定 |
+| Exporter | タイムライン上の字幕ソースを集め、SRT を出力する | 標準テキスト、セリフ準備、初期配置された SRTrack Object を扱う。高度な直上動画参照は後続課題 |
+| Importer | 動画ドロップ時に同名 SRT を検出し、動画と SRTrack Object を配置・グループ化する | 調査・安定化中 |
+| Object / Preview | SRT の参照、編集用字幕プレビュー | 二 Object と両方の Preview を実装済み |
 
 配布物は `SRTrack.aux2`、`SRTrack.lua`、`SRTrackObject.obj2`、`SRTrackObject(Standalone).obj2`、`SRTrack.mod2` の5ファイルです。二つの Object は同じ Preview モジュールを共有します。
 
