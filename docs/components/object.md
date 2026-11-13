@@ -1,5 +1,7 @@
 # SRTrack Object
 
+> **履歴資料**：これは旧単一 SRTrack Object と Monitor を前提にした実装記録であり、現在の正規仕様ではない。次期仕様は [SRT Object と入力データ](../spec/02-srt-source.md) を正とする。
+
 > Object の実装は `src/object/SRTrack.obj2`、プレビュー補助モジュールの実装は `src/mod2/module.cpp` に置きます。配布名は `SRTrack.obj2` と `SRTrack.mod2` です。
 
 SRTrack Object は、レンダリング済み動画に対応する SRT の参照と時間変換設定を保持するカスタムオブジェクトです。SRTrack Exporter が読み取る字幕ソースとして使います。必要なら、編集画面だけで現在の SRT 字幕を確認する補助プレビューを表示できます。

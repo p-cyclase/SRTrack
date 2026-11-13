@@ -1,5 +1,7 @@
 # Importer
 
+> **履歴資料**：以下の詳細は旧単一 Object の初期実装記録である。次期仕様は [Importer](../spec/06-importer.md) を正とし、Monitor への言及は採用しない。
+
 > Importer は `SRTrack.aux2` 内の論理コンポーネントです。GCMZDrops2 用ハンドラースクリプトは `SRTrack.lua` として同じ Plugin フォルダへ配布します。
 
 GCMZDrops2 の公開ハンドラースクリプト API を通じ、動画ファイルのドラッグ＆ドロップ時に同じフォルダの同名 SRT を検出して SRTrack Object を追加する試作コンポーネントです。GCMZDrops2 と L-SMASH Works を前提プラグインとし、いずれも同梱しません。

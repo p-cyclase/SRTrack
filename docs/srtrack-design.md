@@ -3,7 +3,7 @@
 作成日：2026-11-11  
 状態：履歴として保存する初期検討案。未確定事項を含み、実装済みであることや動作を保証するものではない。
 
-> この文書は更新対象ではない初期の検討メモである。現行仕様・実装状態は [全体仕様書](spec/README.md) を正とする。現行方針には、動画ドロップ時に同名 SRT と SRTrack Object を対応づける Importer、動画 Object の更新結果を Object へ反映する予定の Monitor、動画オブジェクトと同じフレーム境界終端による `E`／`D` の初期化、編集用 Preview モジュールが追加されている。完成時の配布構成は `SRTrack.aux2`、`SRTrack.lua`、`SRTrack.obj2`、`SRTrack.mod2` とする。両者に差がある場合は、全体仕様書を優先する。
+> この文書は更新対象ではない初期の検討メモである。現行仕様・実装状態は [全体仕様書](spec/README.md) を正とする。次期方針では、動画を直上レイヤーから参照する `SRTrack Link Object` と、再生設定を自身で保持する `SRTrack Clip Object` を分け、常駐 Monitor は廃止する。完成時の配布構成は当面 `SRTrack.aux2`、`SRTrack.lua`、`SRTrack.obj2`、`SRTrack.mod2` を維持する。両者に差がある場合は、全体仕様書を優先する。
 
 ## 1. 目的と構成
 

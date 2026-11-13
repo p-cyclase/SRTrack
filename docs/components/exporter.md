@@ -1,6 +1,8 @@
 # Exporter
 
-> Exporter は `SRTrack.aux2` 内の論理コンポーネントです。Importer・Monitor と同じ DLL に収録しますが、責務とソースは分けます。
+> **履歴資料**：本書の旧 SRTrack Object と Monitor に関する説明は正規仕様ではない。次期の Object 入力と時間変換は [全体仕様書](../spec/README.md) を優先する。
+
+> Exporter は `SRTrack.aux2` 内の論理コンポーネントです。次期構成では Importer と同じ DLL に収録しますが、責務とソースは分けます。
 
 AviUtl2 の標準テキストや対応する外部字幕準備オブジェクトから、タイムスタンプ付きの SRT 字幕を出力する汎用プラグインの試作版です。初期の出力先として YouTube Studio を想定しています。
 
