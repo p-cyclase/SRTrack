@@ -47,19 +47,6 @@ local function escape_alias_value(value)
   return value:gsub("[\r\n]", "")
 end
 
-local function srt_duration(path)
-  local file = io.open(path, "rb")
-  if not file then return 0 end
-  local bytes = file:read("*a")
-  file:close()
-  local maximum = 0
-  for h, m, s, ms in bytes:gmatch("%-%->%s*(%d+):(%d%d):(%d%d)[,.](%d%d%d)") do
-    local value = ((tonumber(h) * 60 + tonumber(m)) * 60 + tonumber(s)) * 1000 + tonumber(ms)
-    if value > maximum then maximum = value end
-  end
-  return maximum / 1000
-end
-
 local function append_standard_drawing(lines, effect_name, audio)
   table.insert(lines, "effect.name=" .. effect_name)
   table.insert(lines, "X=0.00")
@@ -138,47 +125,24 @@ local function write_alias(pairs, project)
   return path
 end
 
-local function write_single_srt_alias(srt_path, project)
-  local path = gcmz.create_temp_file("srtrack-srt.object")
-  if not path then return nil end
-  local duration = srt_duration(srt_path)
-  local frame_count = math.max(1, math.ceil(duration * project.rate / project.scale))
-  local lines = {
-    "[0]",
-    "layer=1",
-    "frame=0," .. (frame_count - 1),
-    "[0.0]",
-    "effect.name=SRTrackObject",
-    "SRT ファイル=" .. escape_alias_value(srt_path),
-    "動画全長=0.000",
-    "字幕プレビュー=1",
-    "[0.1]",
-  }
-  append_standard_drawing(lines, "標準描画", false)
-  local file = io.open(path, "wb")
-  if not file then return nil end
-  file:write(table.concat(lines, "\r\n"), "\r\n")
-  file:close()
-  return path
-end
-
 function M.drag_enter(files, state)
   -- This hook may inspect metadata only.  Do not open files here.
   for _, file in ipairs(files) do
     local ext = extension(file.filepath)
-    if ext == "srt" or (ext and supported_extensions[ext]) then return true end
+    if ext and supported_extensions[ext] then return true end
   end
   return false
 end
 
-function M.drop(files, state)
+-- Do all work that may fail before modifying files.  Leaving files unchanged
+-- is the documented way to hand them back to AviUtl2's regular input path.
+local function prepare_pair_replacement(files)
   local project = gcmz.get_project_data()
   if not project or not project.rate or not project.scale or project.rate <= 0 or project.scale <= 0 then
-    return
+    return nil
   end
 
   local pairs = {}
-  local handled = {}
   for index, file in ipairs(files) do
     local ext = extension(file.filepath)
     if ext and supported_extensions[ext] then
@@ -198,31 +162,29 @@ function M.drop(files, state)
     end
   end
 
-  if #pairs > 0 then
-    table.sort(pairs, function(a, b) return a.name:lower() < b.name:lower() end)
-    local alias = write_alias(pairs, project)
-    if alias then
-      -- Remove only the videos handled by this alias.  Any unrelated files remain
-      -- in the list for AviUtl2's ordinary input path.
-      for _, pair in ipairs(pairs) do handled[#handled + 1] = pair.index end
-      table.sort(handled, function(a, b) return a > b end)
-      for _, index in ipairs(handled) do table.remove(files, index) end
-      table.insert(files, { filepath = alias, mimetype = "", temporary = true })
-    end
-  end
+  if #pairs == 0 then return nil end
+  table.sort(pairs, function(a, b) return a.name:lower() < b.name:lower() end)
+  local alias = write_alias(pairs, project)
+  if not alias then return nil end
 
-  -- A standalone SRT becomes the linked SRTrack Object requested for this
-  -- initial feature.  It intentionally has no video or group of its own.
-  for index = #files, 1, -1 do
-    local file = files[index]
-    if extension(file.filepath) == "srt" then
-      local alias = write_single_srt_alias(file.filepath, project)
-      if alias then
-        table.remove(files, index)
-        table.insert(files, { filepath = alias, mimetype = "", temporary = true })
-      end
-    end
+  local handled = {}
+  for _, pair in ipairs(pairs) do handled[#handled + 1] = pair.index end
+  table.sort(handled, function(a, b) return a > b end)
+  return { alias = alias, handled = handled }
+end
+
+function M.drop(files, state)
+  -- gcmz APIs and filesystem operations may fail unexpectedly.  The protected
+  -- phase does not mutate files, so a failure preserves every source video for
+  -- AviUtl2 and its normal input plugins.
+  local ok, replacement = pcall(prepare_pair_replacement, files)
+  if not ok or not replacement then return end
+
+  -- Mutation begins only after the complete replacement alias exists.
+  for _, index in ipairs(replacement.handled) do
+    table.remove(files, index)
   end
+  table.insert(files, { filepath = replacement.alias, mimetype = "", temporary = true })
 end
 
 return M
