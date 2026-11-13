@@ -105,7 +105,7 @@ static bool suggested_srt_path(EDIT_SECTION* edit,std::wstring& output){
  size_t slash=output.find_last_of(L"\\/");size_t dot=output.find_last_of(L'.');if(dot==std::wstring::npos||(slash!=std::wstring::npos&&dot<slash))output+=L".srt";else output.replace(dot,std::wstring::npos,L".srt");return true;
 }
 static const wchar_t* find_srtrack_effect(EDIT_SECTION* edit,OBJECT_HANDLE object,std::wstring& name){
- for(const wchar_t* known:{L"SRTrack",L"SRTrack Object"})if(edit->count_object_effect(object,known)>0)return known;
+ for(const wchar_t* known:{L"SRTrackObject",L"SRTrackObject(Standalone)",L"SRTrack",L"SRTrack Object"})if(edit->count_object_effect(object,known)>0)return known;
  const char* raw=edit->get_object_alias(object);if(!raw)return nullptr;std::string alias=raw;size_t pos=0;
  while((pos=alias.find("effect.name=",pos))!=std::string::npos){size_t start=pos+12,end=alias.find_first_of("\r\n",start);std::wstring candidate;if(!utf8_to_wide(alias.substr(start,end==std::string::npos?std::string::npos:end-start),candidate)){pos=start;continue;}if(edit->get_object_item_value(object,candidate.c_str(),L"SRT ファイル")&&edit->get_object_item_value(object,candidate.c_str(),L"再生位置")){name=std::move(candidate);return name.c_str();}pos=start;}
  return nullptr;

@@ -37,6 +37,27 @@ local function seconds(value)
   return string.format("%.3f", value)
 end
 
+local function copy_file_list(files)
+  local copied = {}
+  for index, file in ipairs(files) do
+    local entry = {}
+    for key, value in pairs(file) do
+      entry[key] = value
+    end
+    copied[index] = entry
+  end
+  return copied
+end
+
+local function replace_file_list(destination, source)
+  for index = #destination, 1, -1 do
+    table.remove(destination, index)
+  end
+  for _, file in ipairs(source) do
+    table.insert(destination, file)
+  end
+end
+
 local function append_standard_drawing(lines, effect_name, audio)
   table.insert(lines, effect_name)
   table.insert(lines, "X=0.00")
@@ -85,7 +106,7 @@ local function write_grouped_alias(pairs, project)
     table.insert(lines, "frame=" .. tostring(next_frame) .. "," .. tostring(last_frame))
     table.insert(lines, "group=" .. tostring(group))
     table.insert(lines, "[" .. tostring(object_index) .. ".0]")
-    table.insert(lines, "effect.name=SRTrack")
+    table.insert(lines, "effect.name=SRTrackObject")
     table.insert(lines, "SRT ファイル=" .. escape_alias_value(pair.srt_path))
     table.insert(lines, "動画全長=" .. duration)
     table.insert(lines, "字幕プレビュー=1")
@@ -120,8 +141,12 @@ local function write_grouped_alias(pairs, project)
     debug_print("[SRTrack] Object temporary file write failed: " .. tostring(open_err))
     return nil
   end
-  file:write(alias)
+  local written, write_err = file:write(alias)
   file:close()
+  if not written then
+    debug_print("[SRTrack] Object temporary file write failed: " .. tostring(write_err))
+    return nil
+  end
   return path
 end
 
@@ -138,10 +163,10 @@ function M.drag_enter(files, state)
   return false
 end
 
-function M.drop(files, state)
+local function import_pairs(files, state)
   local project = gcmz.get_project_data()
   if not project or not project.rate or not project.scale or project.rate <= 0 or project.scale <= 0 then
-    return true
+    return false
   end
 
   -- Appending generated .object files is the GCMZDrops2 path already used by
@@ -193,9 +218,27 @@ function M.drop(files, state)
         mimetype = "",
         temporary = true,
       })
+      return true
     end
   end
+  return false
+end
 
+function M.drop(files, state)
+  -- `files` is eventually handed to AviUtl2.  Never alter it until all
+  -- SRTrack work has succeeded, so a handler failure still leaves the normal
+  -- reader chain with the original video files.
+  local staged = copy_file_list(files)
+  local ok, replaced_or_error = xpcall(function()
+    return import_pairs(staged, state)
+  end, debug.traceback)
+  if not ok then
+    debug_print("[SRTrack] Importer failed; original files were preserved: " .. tostring(replaced_or_error))
+    return true
+  end
+  if replaced_or_error then
+    replace_file_list(files, staged)
+  end
   return true
 end
 
