@@ -28,10 +28,10 @@ movie.mp4  →  movie.srt
 
 同名 SRT と動画トラックの両方を確認できた場合、Importer は元動画を一時の複数 Object `.object` エイリアスに置き換える。このエイリアスには次の二つを含める。
 
-1. 下側レイヤーの標準 `動画ファイル` Object
-2. その直上レイヤーの `SRTrack Object`
+1. 上側（Layer 1 側）の標準 `動画ファイル` Object
+2. その直下の `SRTrack Object`
 
-二つには同じグループ値を設定する。これにより動画と字幕 Object を一組として移動・編集しやすくする。SRTrack Object の字幕参照条件はグループ ID ではなく直上動画である。
+この二つは同じ時刻の隣接する2レイヤーに置き、同じグループ値を設定する。これにより動画と字幕 Object を一組として移動・編集しやすくする。SRTrack Object の字幕参照条件はグループ ID ではなく、1つ上のレイヤーにある動画である。
 
 SRTrack Object には、検出した SRT パス、元動画の長さを表す `動画全長 D`、字幕プレビュー有効を設定する。動画と Object は同じ開始フレーム・同じ長さで配置する。
 
@@ -45,7 +45,7 @@ SRTrack Object には、検出した SRT パス、元動画の長さを表す `�
 
 `.srt` 単体をドロップした場合、Importer は AviUtl2 SDK の Object 作成 API で `SRTrackObject` を直接一つ配置する。動画との組、グループ、複数 Object エイリアスを必要としないため、この経路で一時 `.object` エイリアスは生成しない。SRT の最大終了時刻を Object 長とし、有効な時刻を得られない場合は最小 1 フレームとする。
 
-この初期実装は、動画とグループ化せず、`動画全長 D` を `0` に設定する。SRT 単体取込では `SRTrackObject(Standalone)` も選べるが、既定は直上動画が必要な `SRTrackObject` とする。選択値は Importer 設定で保存し、AviUtl2 の次回起動時から適用する。
+この初期実装は、動画とグループ化せず、`動画全長 D` を `0` に設定する。SRT 単体取込では `SRTrackObject(Standalone)` も選べるが、既定は1つ上のレイヤーの動画が必要な `SRTrackObject` とする。選択値は Importer 設定で保存し、AviUtl2 の次回起動時から適用する。
 
 ## 6.4 今後の改善候補
 
