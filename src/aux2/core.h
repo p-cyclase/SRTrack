@@ -12,6 +12,7 @@ struct Caption { int layer; int start; int end; std::string text; }; // end excl
 struct Block { int start; int end; std::string text; };
 struct TimedBlock { int64_t start, end; std::string text; };
 struct SrtCaption { int64_t start, end; std::string text; size_t order; };
+enum class SimultaneousOrder { upper_layer_first, lower_layer_first };
 struct SourceTimedCaption {
     int64_t start, end;
     std::string text;
@@ -159,10 +160,13 @@ inline std::vector<TimedBlock> map_video_bound_srt_segment(
     return map_srt_to_scene(captions, scene_start, scene_end, source_start, speed);
 }
 
-inline std::vector<TimedBlock> integrate_timeline(std::vector<SourceTimedCaption> captions) {
-    std::stable_sort(captions.begin(), captions.end(), [](const SourceTimedCaption& a, const SourceTimedCaption& b) {
+inline std::vector<TimedBlock> integrate_timeline(
+    std::vector<SourceTimedCaption> captions,
+    SimultaneousOrder simultaneous_order = SimultaneousOrder::upper_layer_first) {
+    std::stable_sort(captions.begin(), captions.end(), [simultaneous_order](const SourceTimedCaption& a, const SourceTimedCaption& b) {
         if (a.start != b.start) return a.start < b.start;
-        if (a.layer != b.layer) return a.layer < b.layer;
+        if (a.layer != b.layer) return simultaneous_order == SimultaneousOrder::upper_layer_first
+            ? a.layer < b.layer : a.layer > b.layer;
         return a.order < b.order;
     });
     std::vector<TimedBlock> out;
@@ -183,6 +187,106 @@ inline std::vector<TimedBlock> integrate_timeline(std::vector<SourceTimedCaption
     }
     if (active && current.end > current.start) out.push_back({current.start, current.end, current.text});
     return out;
+}
+
+inline bool is_control_number(const std::string& value, bool allow_multiplier = false) {
+    if (value.empty()) return true;
+    size_t index = 0;
+    if (allow_multiplier && value[index] == '*') ++index;
+    if (index < value.size() && (value[index] == '+' || value[index] == '-')) ++index;
+    bool digit = false;
+    bool decimal = false;
+    for (; index < value.size(); ++index) {
+        const char c = value[index];
+        if (c >= '0' && c <= '9') { digit = true; continue; }
+        if (c == '.' && !decimal) { decimal = true; continue; }
+        return false;
+    }
+    return digit;
+}
+
+inline bool is_control_numbers(const std::string& value) {
+    if (value.empty()) return true;
+    size_t start = 0;
+    while (start <= value.size()) {
+        const size_t end = value.find(',', start);
+        if (!is_control_number(value.substr(start, end == std::string::npos ? std::string::npos : end - start), true)) return false;
+        if (end == std::string::npos) return true;
+        start = end + 1;
+    }
+    return false;
+}
+
+inline bool is_aviutl_text_control(const std::string& token) {
+    if (token == "/") return true; // Text block separator.
+    if (token.empty()) return false;
+    const std::string payload = token.substr(1);
+    switch (token[0]) {
+    case '#': return true;
+    case '@': case '$': return true;
+    case 's': {
+        const size_t comma = payload.find(',');
+        return is_control_number(payload.substr(0, comma), true);
+    }
+    case 'r': case 'w': case 'c': return is_control_number(payload, true);
+    case 'p': return is_control_numbers(payload);
+    case 'g': return token.size() >= 3 && (token[1] == 'w' || token[1] == 'h') && is_control_number(token.substr(2), true);
+    case 't': return token.size() >= 3 && (token[1] == 'w' || token[1] == 'h' || token[1] == 'r') && is_control_number(token.substr(2), true);
+    default: return false;
+    }
+}
+
+// Converts only documented AviUtl2 text controls.  It deliberately leaves
+// unknown angle-bracketed text intact so ordinary prose is not lost.
+inline std::string sanitize_aviutl_text(const std::string& input, bool keep_ruby, bool keep_emoji) {
+    std::string output;
+    output.reserve(input.size());
+    for (size_t index = 0; index < input.size();) {
+        if (input.compare(index, 3, "<//") == 0) {
+            const size_t end = input.find("//>", index + 3);
+            if (end != std::string::npos) { index = end + 3; continue; }
+        }
+        if (input.compare(index, 2, "<?") == 0) {
+            const size_t end = input.find("?>", index + 2);
+            if (end != std::string::npos) { index = end + 2; continue; }
+        }
+        if (input.compare(index, 3, "</>") == 0) {
+            const size_t ruby_marker = input.find("<!", index + 3);
+            if (ruby_marker != std::string::npos) {
+                const size_t ruby_header_end = input.find('>', ruby_marker + 2);
+                if (ruby_header_end != std::string::npos) {
+                    const size_t ruby_end = input.find("</>", ruby_header_end + 1);
+                    if (ruby_end != std::string::npos) {
+                        const std::string base = sanitize_aviutl_text(input.substr(index + 3, ruby_marker - (index + 3)), keep_ruby, keep_emoji);
+                        const std::string reading = sanitize_aviutl_text(input.substr(ruby_header_end + 1, ruby_end - (ruby_header_end + 1)), keep_ruby, keep_emoji);
+                        output += base;
+                        if (keep_ruby && !reading.empty()) output += "（" + reading + "）";
+                        index = ruby_end + 3;
+                        continue;
+                    }
+                }
+            }
+            index += 3;
+            continue;
+        }
+        if (input[index] == '<') {
+            const size_t end = input.find('>', index + 1);
+            if (end != std::string::npos) {
+                const std::string token = input.substr(index + 1, end - (index + 1));
+                if (!token.empty() && token[0] == '&') {
+                    if (keep_emoji && token.size() > 1) output += "（" + token.substr(1) + "）";
+                    index = end + 1;
+                    continue;
+                }
+                if (is_aviutl_text_control(token)) {
+                    index = end + 1;
+                    continue;
+                }
+            }
+        }
+        output += input[index++];
+    }
+    return output;
 }
 
 inline std::vector<TimedBlock> clip_and_rebase_timeline(

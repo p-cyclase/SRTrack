@@ -46,6 +46,12 @@ int main() {
   assert(simultaneous[3].end == 1000 && simultaneous[3].text == "d");
   auto joined = merge_timed_blocks(simultaneous, 500);
   assert(joined.size() == 1 && joined[0].start == 0 && joined[0].end == 1000 && joined[0].text == "abcd");
+  auto reverse_simultaneous = integrate_timeline({
+      {0, 1000, "d", 3, 0}, {0, 1000, "b", 1, 0},
+      {0, 1000, "a", 0, 0}, {0, 1000, "c", 2, 0}},
+      SimultaneousOrder::lower_layer_first);
+  auto reverse_joined = merge_timed_blocks(reverse_simultaneous, 500);
+  assert(reverse_joined.size() == 1 && reverse_joined[0].text == "dcba");
 
   auto ordinary_short = merge_timed_blocks({{0, 100, "A"}, {300, 1000, "B"}}, 500);
   assert(ordinary_short.size() == 1 && ordinary_short[0].start == 0 && ordinary_short[0].end == 1000 && ordinary_short[0].text == "AB");
@@ -62,4 +68,15 @@ int main() {
   auto shifted = shift_timeline({{0, 1000, "A"}}, -500, &omitted);
   assert(omitted == 0 && shifted.size() == 1 && shifted[0].start == 0 && shifted[0].end == 500);
   assert(render_srt(shifted).find("00:00:00,000 --> 00:00:00,500") != std::string::npos);
+
+  assert(sanitize_aviutl_text("A<#ffffff><s32,Meiryo,3,2><@Meiryo,3><p20,40><gw8><tw0.8>B", true, true) == "AB");
+  assert(sanitize_aviutl_text("</>漢字<!>かんじ</> <&拍手>", true, true) == "漢字（かんじ） （拍手）");
+  assert(sanitize_aviutl_text("</>漢字<!>かんじ</> <&拍手>", false, false) == "漢字 ");
+  assert(sanitize_aviutl_text("A<r10>B", true, true) == "AB");
+  assert(sanitize_aviutl_text("A<w0.5>B", true, true) == "AB");
+  assert(sanitize_aviutl_text("A<c>B", true, true) == "AB");
+  assert(sanitize_aviutl_text("A<//note//>B", true, true) == "AB");
+  assert(sanitize_aviutl_text("A<?return 'x'?>B", true, true) == "AB");
+  assert(sanitize_aviutl_text("A<r10><w0.5><c>B<//note//><?return 'x'?>C", true, true) == "ABC");
+  assert(sanitize_aviutl_text("A<not-a-control>B", true, true) == "A<not-a-control>B");
 }
