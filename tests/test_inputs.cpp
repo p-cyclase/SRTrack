@@ -11,7 +11,7 @@ int main() {
   assert(offsetof(EDIT_SECTION,get_layer_name)==27*sizeof(void*));
   HWND window=CreateDialogParamW(GetModuleHandleW(nullptr),MAKEINTRESOURCEW(101),nullptr,dialog,0);
   assert(window);
-  HWND names_input=GetDlgItem(window,1012);
+  HWND names_input=exporter_control(window,1012);
   assert(names_input && (GetWindowLongPtrW(names_input,GWL_STYLE)&ES_WANTRETURN));
   HWND next=GetDlgItem(window,1020);
   assert(next && !GetDlgItem(window,IDOK));

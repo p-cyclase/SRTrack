@@ -44,13 +44,13 @@ int main() {
   assert(simultaneous[1].end == 0 && simultaneous[1].text == "b");
   assert(simultaneous[2].end == 0 && simultaneous[2].text == "c");
   assert(simultaneous[3].end == 1000 && simultaneous[3].text == "d");
-  auto joined = merge_timed_blocks(simultaneous, 1, 1000);
+  auto joined = merge_timed_blocks(simultaneous, 500);
   assert(joined.size() == 1 && joined[0].start == 0 && joined[0].end == 1000 && joined[0].text == "abcd");
 
-  auto ordinary_short = merge_timed_blocks({{0, 100, "A"}, {300, 1000, "B"}}, 200, 1000);
+  auto ordinary_short = merge_timed_blocks({{0, 100, "A"}, {300, 1000, "B"}}, 500);
   assert(ordinary_short.size() == 1 && ordinary_short[0].start == 0 && ordinary_short[0].end == 1000 && ordinary_short[0].text == "AB");
-  auto final_short = merge_timed_blocks({{0, 50, "A"}}, 200, 1000);
-  assert(final_short.size() == 1 && final_short[0].end == 1000);
+  auto final_short = merge_timed_blocks({{0, 50, "A"}}, 500);
+  assert(final_short.size() == 1 && final_short[0].end == 500);
 
   auto clipped = clip_and_rebase_timeline({{1000, 1000, "Z"}, {1000, 4000, "A"}, {5000, 7000, "B"}},
                                            1000, 6000);

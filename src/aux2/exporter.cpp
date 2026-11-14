@@ -2,6 +2,7 @@
 #define NOMINMAX
 #include <windows.h>
 #include <commdlg.h>
+#include <commctrl.h>
 #include <climits>
 #include <cmath>
 #include <cstdlib>
@@ -17,7 +18,7 @@ static HINSTANCE module_handle;
 static EDIT_HANDLE* export_edit_handle;
 struct Settings {
  bool all=true, range_all=true, text=true, dialogue=true, srtrack=true;
- std::wstring numbers=L"", names=L"", offset=L"0", threshold=L"0.001", final_min=L"1";
+ std::wstring numbers=L"", names=L"", offset=L"0.000", minimum_duration=L"1.000";
 };
 static Settings settings;
 static constexpr wchar_t registry_key[]=L"Software\\SRTrack";
@@ -37,10 +38,7 @@ static void load_settings() {
  settings.dialogue=read_string(k,L"dialogue",L"1")==L"1";
  settings.srtrack=read_string(k,L"srtrack",L"1")==L"1";
  settings.numbers=read_string(k,L"numbers",L"");settings.names=read_string(k,L"names",L"");
- settings.offset=read_string(k,L"offset",L"0");settings.threshold=read_string(k,L"threshold",L"0.001");settings.final_min=read_string(k,L"final_min",L"1");
- // Earlier previews stored the old default 0.  The new event model requires
- // a positive threshold so same-frame captions are always eligible to join.
- if(settings.threshold==L"0")settings.threshold=L"0.001";
+ settings.offset=read_string(k,L"offset",L"0.000");settings.minimum_duration=read_string(k,L"final_min",L"1.000");
  RegCloseKey(k);
 }
 static bool save_settings() {
@@ -48,7 +46,7 @@ static bool save_settings() {
  bool ok=true;
  auto put=[&](const wchar_t* n,const std::wstring& v){if(RegSetValueExW(k,n,0,REG_SZ,(const BYTE*)v.c_str(),DWORD((v.size()+1)*sizeof(wchar_t)))!=ERROR_SUCCESS)ok=false;};
  put(L"scope",settings.all?L"all":L"selected");put(L"range",settings.range_all?L"all":L"selected");put(L"text",settings.text?L"1":L"0");put(L"dialogue",settings.dialogue?L"1":L"0");put(L"srtrack",settings.srtrack?L"1":L"0");
- put(L"numbers",settings.numbers);put(L"names",settings.names);put(L"offset",settings.offset);put(L"threshold",settings.threshold);put(L"final_min",settings.final_min);
+ put(L"numbers",settings.numbers);put(L"names",settings.names);put(L"offset",settings.offset);put(L"final_min",settings.minimum_duration);
  RegCloseKey(k);return ok;
 }
 static bool parse_layers(const std::wstring& input,std::set<int>& layers) {
@@ -65,10 +63,32 @@ static std::vector<std::wstring> split_names(const std::wstring& input) {
   auto s=input.substr(p,end-p);if(!s.empty()&&s.back()==L'\r')s.pop_back();if(!s.empty())names.push_back(s);p=end+1;}
  return names;
 }
-static std::wstring get_text(HWND h,int id) {
- HWND c=GetDlgItem(h,id);int n=GetWindowTextLengthW(c);std::vector<wchar_t> b(size_t(n)+1);GetWindowTextW(c,b.data(),n+1);return b.data();
+static constexpr int exporter_tab_id=1030;
+static HWND output_target_page;
+static HWND subtitle_format_page;
+static HWND exporter_control(HWND dialog,int id){
+ HWND control=GetDlgItem(dialog,id);if(control)return control;
+ if(output_target_page&&(control=GetDlgItem(output_target_page,id)))return control;
+ if(subtitle_format_page&&(control=GetDlgItem(subtitle_format_page,id)))return control;
+ return nullptr;
 }
-static void enable_scope(HWND h){BOOL enabled=IsDlgButtonChecked(h,1011)==BST_CHECKED;EnableWindow(GetDlgItem(h,1001),enabled);EnableWindow(GetDlgItem(h,1012),enabled);}
+static std::wstring get_text(HWND h,int id) {
+ HWND c=exporter_control(h,id);int n=GetWindowTextLengthW(c);std::vector<wchar_t> b(size_t(n)+1);GetWindowTextW(c,b.data(),n+1);return b.data();
+}
+static bool is_checked(HWND dialog,int id){return SendMessageW(exporter_control(dialog,id),BM_GETCHECK,0,0)==BST_CHECKED;}
+static void set_checked(HWND dialog,int id,bool checked){SendMessageW(exporter_control(dialog,id),BM_SETCHECK,checked?BST_CHECKED:BST_UNCHECKED,0);}
+static void show_exporter_tab(HWND dialog,int tab){
+ ShowWindow(output_target_page,tab==0?SW_SHOW:SW_HIDE);
+ ShowWindow(subtitle_format_page,tab==1?SW_SHOW:SW_HIDE);
+}
+static std::wstring format_seconds(int64_t milliseconds){
+ const bool negative=milliseconds<0;const uint64_t value=negative?uint64_t(-milliseconds):uint64_t(milliseconds);
+ wchar_t text[48]{};swprintf_s(text,L"%s%llu.%03llu",negative?L"-":L"",value/1000,value%1000);return text;
+}
+static void set_seconds_text(HWND h,int id,const std::wstring& value){
+ int64_t milliseconds=0;SetWindowTextW(exporter_control(h,id),parse_offset(value,milliseconds)?format_seconds(milliseconds).c_str():value.c_str());
+}
+static void enable_scope(HWND h){BOOL enabled=is_checked(h,1011);EnableWindow(exporter_control(h,1001),enabled);EnableWindow(exporter_control(h,1012),enabled);}
 static WNDPROC original_next_proc=nullptr;
 static LRESULT CALLBACK next_button_proc(HWND button,UINT msg,WPARAM w,LPARAM l){
  if(msg==WM_GETDLGCODE && l && reinterpret_cast<MSG*>(l)->message==WM_KEYDOWN && w==VK_RETURN)
@@ -76,18 +96,27 @@ static LRESULT CALLBACK next_button_proc(HWND button,UINT msg,WPARAM w,LPARAM l)
  if((msg==WM_KEYDOWN||msg==WM_KEYUP||msg==WM_CHAR)&&w==VK_RETURN)return 0;
  return CallWindowProcW(original_next_proc,button,msg,w,l);
 }
-static INT_PTR CALLBACK dialog(HWND h,UINT msg,WPARAM w,LPARAM) {
- if(msg==WM_INITDIALOG){CheckRadioButton(h,1010,1011,settings.all?1010:1011);CheckRadioButton(h,1018,1019,settings.range_all?1018:1019);CheckDlgButton(h,1013,settings.text?BST_CHECKED:BST_UNCHECKED);CheckDlgButton(h,1014,settings.dialogue?BST_CHECKED:BST_UNCHECKED);CheckDlgButton(h,1017,settings.srtrack?BST_CHECKED:BST_UNCHECKED);
-  SetDlgItemTextW(h,1001,settings.numbers.c_str());SetDlgItemTextW(h,1012,settings.names.c_str());SetDlgItemTextW(h,1002,settings.offset.c_str());SetDlgItemTextW(h,1015,settings.threshold.c_str());SetDlgItemTextW(h,1016,settings.final_min.c_str());
+static INT_PTR CALLBACK exporter_page(HWND page,UINT msg,WPARAM w,LPARAM lParam){
+ if(msg==WM_COMMAND)return SendMessageW(GetParent(page),msg,w,lParam);
+ return FALSE;
+}
+static INT_PTR CALLBACK dialog(HWND h,UINT msg,WPARAM w,LPARAM lParam) {
+ if(msg==WM_INITDIALOG){
+  HWND tabs=GetDlgItem(h,exporter_tab_id);TCITEMW item{};item.mask=TCIF_TEXT;item.pszText=const_cast<LPWSTR>(L"出力対象");SendMessageW(tabs,TCM_FIRST+62,0,reinterpret_cast<LPARAM>(&item));item.pszText=const_cast<LPWSTR>(L"字幕の整形");SendMessageW(tabs,TCM_FIRST+62,1,reinterpret_cast<LPARAM>(&item));
+  output_target_page=CreateDialogParamW(module_handle,MAKEINTRESOURCEW(103),h,exporter_page,0);subtitle_format_page=CreateDialogParamW(module_handle,MAKEINTRESOURCEW(104),h,exporter_page,0);RECT area{};GetClientRect(tabs,&area);TabCtrl_AdjustRect(tabs,FALSE,&area);MapWindowPoints(tabs,h,reinterpret_cast<POINT*>(&area),2);const int page_width=area.right-area.left,page_height=area.bottom-area.top;SetWindowPos(output_target_page,HWND_TOP,area.left,area.top,page_width,page_height,SWP_NOACTIVATE);SetWindowPos(subtitle_format_page,HWND_TOP,area.left,area.top,page_width,page_height,SWP_NOACTIVATE);TabCtrl_SetCurSel(tabs,0);show_exporter_tab(h,0);
+  set_checked(h,1010,settings.all);set_checked(h,1011,!settings.all);set_checked(h,1018,settings.range_all);set_checked(h,1019,!settings.range_all);set_checked(h,1013,settings.text);set_checked(h,1014,settings.dialogue);set_checked(h,1017,settings.srtrack);
+  SetWindowTextW(exporter_control(h,1001),settings.numbers.c_str());SetWindowTextW(exporter_control(h,1012),settings.names.c_str());set_seconds_text(h,1002,settings.offset);set_seconds_text(h,1016,settings.minimum_duration);
   original_next_proc=reinterpret_cast<WNDPROC>(SetWindowLongPtrW(GetDlgItem(h,1020),GWLP_WNDPROC,reinterpret_cast<LONG_PTR>(next_button_proc)));enable_scope(h);return TRUE;}
+ if(msg==WM_NOTIFY){const auto* notification=reinterpret_cast<const NMHDR*>(lParam);if(notification&&notification->idFrom==exporter_tab_id&&notification->code==TCN_SELCHANGE){show_exporter_tab(h,TabCtrl_GetCurSel(GetDlgItem(h,exporter_tab_id)));return TRUE;}}
  if(msg==WM_COMMAND&&(LOWORD(w)==1010||LOWORD(w)==1011)){enable_scope(h);return TRUE;}
  if(msg==WM_COMMAND&&LOWORD(w)==IDOK)return TRUE;
- if(msg==WM_COMMAND&&LOWORD(w)==1020&&HIWORD(w)==BN_CLICKED){Settings next=settings;next.all=IsDlgButtonChecked(h,1010)==BST_CHECKED;next.range_all=IsDlgButtonChecked(h,1018)==BST_CHECKED;next.text=IsDlgButtonChecked(h,1013)==BST_CHECKED;next.dialogue=IsDlgButtonChecked(h,1014)==BST_CHECKED;
-  next.numbers=get_text(h,1001);next.names=get_text(h,1012);next.offset=get_text(h,1002);next.threshold=get_text(h,1015);next.final_min=get_text(h,1016);next.srtrack=IsDlgButtonChecked(h,1017)==BST_CHECKED;
-  std::set<int> nums;int64_t off,threshold,minimum;
+ if(msg==WM_COMMAND&&LOWORD(w)==1020&&HIWORD(w)==BN_CLICKED){Settings next=settings;next.all=is_checked(h,1010);next.range_all=is_checked(h,1018);next.text=is_checked(h,1013);next.dialogue=is_checked(h,1014);
+  next.numbers=get_text(h,1001);next.names=get_text(h,1012);next.offset=get_text(h,1002);next.minimum_duration=get_text(h,1016);next.srtrack=is_checked(h,1017);
+  std::set<int> nums;int64_t off,minimum;
   if(!next.text&&!next.dialogue&&!next.srtrack){MessageBoxW(h,L"対象オブジェクトを1つ以上選んでください。",L"入力エラー",MB_ICONWARNING);return TRUE;}
   if(!next.all&&(!parse_layers(next.numbers,nums)||(nums.empty()&&split_names(next.names).empty()))){MessageBoxW(h,L"レイヤー番号または名前を指定してください。番号の例: 3, 5, 8-10",L"入力エラー",MB_ICONWARNING);return TRUE;}
-  if(!parse_offset(next.offset,off)||!parse_offset(next.threshold,threshold)||threshold<=0||!parse_offset(next.final_min,minimum)||minimum<=0){MessageBoxW(h,L"秒数は小数点以下3桁までです。結合閾値と末尾の最小表示時間は0より大きくしてください。",L"入力エラー",MB_ICONWARNING);return TRUE;}
+  if(!parse_offset(next.offset,off)||!parse_offset(next.minimum_duration,minimum)||minimum<500){MessageBoxW(h,L"秒数は小数点以下3桁までです。最小表示時間は0.500秒以上にしてください。",L"入力エラー",MB_ICONWARNING);return TRUE;}
+  next.offset=format_seconds(off);next.minimum_duration=format_seconds(minimum);
   settings=next;if(!save_settings())MessageBoxW(h,L"設定を保存できませんでした。今回の出力は続行できます。",L"設定保存",MB_ICONWARNING);EndDialog(h,IDOK);return TRUE;}
  if((msg==WM_COMMAND&&LOWORD(w)==IDCANCEL)||msg==WM_CLOSE){EndDialog(h,IDCANCEL);return TRUE;}return FALSE;
 }
@@ -159,7 +188,7 @@ static void export_subtitles(EDIT_SECTION* edit){
   for(int i=0;i<=edit->info->layer_max;++i){LPCWSTR name=edit->get_layer_name(i);if(!name)continue;for(size_t j=0;j<names.size();++j)if(names[j]==name){layers.insert(i);found[j]=true;}}
   for(size_t j=0;j<names.size();++j)if(!found[j])missing.push_back(names[j]);}
  if(!missing.empty()){std::wstring message=L"次のレイヤー名が見つかりませんでした。\n";for(const auto& n:missing)message+=L"・"+n+L"\n";message+=L"\n見つかった対象で続行しますか？";if(MessageBoxW(owner,message.c_str(),L"SRTrack Exporter",MB_YESNO|MB_ICONWARNING)!=IDYES)return;}
- if(!settings.range_all&&(edit->info->select_range_start<0||edit->info->select_range_end<edit->info->select_range_start)){MessageBoxW(owner,L"タイムラインのフレーム選択範囲を指定してください。",L"SRTrack Exporter",MB_ICONWARNING);return;}
+ if(!settings.range_all&&(edit->info->select_range_start<0||edit->info->select_range_end<edit->info->select_range_start)){MessageBoxW(owner,L"フレーム範囲選択を指定してください。",L"SRTrack Exporter",MB_ICONWARNING);return;}
  std::vector<SourceTimedCaption> sources;int warnings=0;size_t source_order=0,caption_count=0,srt_count=0;
  for(int layer:layers){int pos=0;while(pos<=edit->info->frame_max){auto obj=edit->find_object(layer,pos);if(!obj)break;auto loc=edit->get_object_layer_frame(obj);if(loc.layer!=layer||loc.end<pos||loc.end==INT_MAX){++warnings;break;}
   const wchar_t* effect=nullptr;bool isdialogue=edit->count_object_effect(obj,L"セリフ準備@PSDToolKit")>0;const SrtrackEffect srtrack_effect=find_srtrack_effect(edit,obj);bool issrtrack=srtrack_effect.kind!=SrtrackObjectKind::none;
@@ -168,8 +197,8 @@ static void export_subtitles(EDIT_SECTION* edit){
   if(issrtrack&&settings.srtrack){std::vector<SrtCaption> parsed;if(read_srt_source(edit,obj,srtrack_effect.name,parsed,warnings)){if(srtrack_effect.kind==SrtrackObjectKind::standalone)append_standalone_srt(edit,obj,loc,srtrack_effect.name,parsed,edit->info->rate,edit->info->scale,sources,source_order,warnings);else{std::string duration_value;double duration=0;if(get_object_item_string(edit,obj,srtrack_effect.name,L"動画全長",duration_value)&&parse_number(duration_value,duration)&&duration>=0)append_video_bound_srt(edit,obj,loc,srtrack_effect.name,parsed,int64_t(std::llround(duration*1000)),edit->info->rate,edit->info->scale,sources,source_order,warnings);else ++warnings;}++srt_count;}}
   pos=loc.end+1;}}
  if(sources.empty()){MessageBoxW(owner,L"字幕を取得できませんでした。対象レイヤーとオブジェクトを確認してください。",L"SRTrack Exporter",MB_ICONWARNING);return;}
- int64_t offset=0,threshold=0,minimum=1000;parse_offset(settings.offset,offset);parse_offset(settings.threshold,threshold);parse_offset(settings.final_min,minimum);
- auto blocks=integrate_timeline(sources);if(!settings.range_all)blocks=clip_and_rebase_timeline(blocks,frame_milliseconds(edit->info->select_range_start,edit->info->rate,edit->info->scale),frame_milliseconds(edit->info->select_range_end+1,edit->info->rate,edit->info->scale));blocks=merge_timed_blocks(blocks,threshold,minimum);size_t omitted=0;auto shifted=shift_timeline(blocks,offset,&omitted);auto output=render_srt(shifted);
+ int64_t offset=0,minimum=1000;parse_offset(settings.offset,offset);parse_offset(settings.minimum_duration,minimum);
+ auto blocks=integrate_timeline(sources);if(!settings.range_all)blocks=clip_and_rebase_timeline(blocks,frame_milliseconds(edit->info->select_range_start,edit->info->rate,edit->info->scale),frame_milliseconds(edit->info->select_range_end+1,edit->info->rate,edit->info->scale));blocks=merge_timed_blocks(blocks,minimum);size_t omitted=0;auto shifted=shift_timeline(blocks,offset,&omitted);auto output=render_srt(shifted);
  if(output.empty()){MessageBoxW(owner,L"オフセットを適用すると全ての字幕が動画開始前になるため、出力できません。",L"SRTrack Exporter",MB_ICONWARNING);return;}
  if(warnings&&MessageBoxW(owner,L"取得できない項目や制御文字等を検出しました。出力内容の確認が必要です。続けますか？",L"SRTrack Exporter",MB_YESNO|MB_ICONWARNING)!=IDYES)return;
  wchar_t path[32768]=L"subtitles.srt";std::wstring suggested_path;if(suggested_srt_path(edit,suggested_path)&&suggested_path.size()<std::size(path))wcscpy_s(path,suggested_path.c_str());OPENFILENAMEW ofn{};ofn.lStructSize=sizeof(ofn);ofn.hwndOwner=owner;ofn.lpstrFilter=L"SRT 字幕 (*.srt)\0*.srt\0\0";ofn.lpstrFile=path;ofn.nMaxFile=32768;ofn.lpstrDefExt=L"srt";ofn.Flags=OFN_OVERWRITEPROMPT|OFN_PATHMUSTEXIST|OFN_NOCHANGEDIR;
@@ -178,4 +207,4 @@ static void export_subtitles(EDIT_SECTION* edit){
 }
 BOOL WINAPI DllMain(HINSTANCE instance,DWORD reason,LPVOID){if(reason==DLL_PROCESS_ATTACH){module_handle=instance;initialize_importer(instance);}return TRUE;}
 extern "C" __declspec(dllexport) COMMON_PLUGIN_TABLE* GetCommonPluginTable(){static COMMON_PLUGIN_TABLE t{L"SRTrack",L"SRT 字幕の出力と同名 SRT の取込を支援します"};return &t;}
-extern "C" __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE* host){load_settings();export_edit_handle=host->create_edit_handle();host->register_export_menu(L"SRTrack Exporter",export_subtitles);register_importer(host);}
+extern "C" __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE* host){INITCOMMONCONTROLSEX controls{sizeof(controls),ICC_TAB_CLASSES};InitCommonControlsEx(&controls);load_settings();export_edit_handle=host->create_edit_handle();host->register_export_menu(L"SRTrack Exporter",export_subtitles);register_importer(host);}

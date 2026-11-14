@@ -203,18 +203,18 @@ inline std::vector<TimedBlock> clip_and_rebase_timeline(
 }
 
 inline std::vector<TimedBlock> merge_timed_blocks(const std::vector<TimedBlock>& raw,
-                                                   int64_t threshold_ms, int64_t final_min_ms) {
+                                                   int64_t minimum_duration_ms) {
     std::vector<TimedBlock> out;
     for (size_t i = 0; i < raw.size();) {
         TimedBlock block = raw[i++];
-        while (block.end - block.start < threshold_ms && i < raw.size()) {
+        while (block.end - block.start < minimum_duration_ms && i < raw.size()) {
             // A short caption becomes the leading text of the immediately
             // following caption.  No separator is inserted in the initial UI.
             block.text += raw[i].text;
             block.end = raw[i++].end;
         }
-        if (i == raw.size() && block.end - block.start < threshold_ms)
-            block.end = std::max(block.end, block.start + final_min_ms);
+        if (i == raw.size() && block.end - block.start < minimum_duration_ms)
+            block.end = std::max(block.end, block.start + minimum_duration_ms);
         if (block.end > block.start) out.push_back(std::move(block));
     }
     return out;
@@ -274,7 +274,7 @@ inline int64_t frame_milliseconds(int frame, int rate, int scale) {
 }
 
 inline std::vector<TimedBlock> build_timeline(std::vector<Caption> captions, int rate, int scale,
-                                               int64_t threshold_ms, int64_t final_min_ms) {
+                                               int64_t minimum_duration_ms) {
     std::stable_sort(captions.begin(), captions.end(), [](const Caption& a, const Caption& b) {
         return a.start != b.start ? a.start < b.start : a.layer < b.layer;
     });
@@ -284,7 +284,7 @@ inline std::vector<TimedBlock> build_timeline(std::vector<Caption> captions, int
         raw.push_back({frame_milliseconds(captions[i].start,rate,scale),
                        frame_milliseconds(end,rate,scale),captions[i].text});
     }
-    return merge_timed_blocks(raw, threshold_ms, final_min_ms);
+    return merge_timed_blocks(raw, minimum_duration_ms);
 }
 
 inline std::vector<TimedBlock> shift_timeline(const std::vector<TimedBlock>& blocks,
