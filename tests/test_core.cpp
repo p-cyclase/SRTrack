@@ -79,4 +79,20 @@ int main() {
   assert(sanitize_aviutl_text("A<?return 'x'?>B", true, true) == "AB");
   assert(sanitize_aviutl_text("A<r10><w0.5><c>B<//note//><?return 'x'?>C", true, true) == "ABC");
   assert(sanitize_aviutl_text("A<not-a-control>B", true, true) == "A<not-a-control>B");
+
+  // Timing controls advance one shared cursor but never create a cue per
+  // displayed character.  Wait keeps the already visible body on screen;
+  // clear creates a new subtitle boundary.
+  auto timed = build_timing_controlled_text("<r10>AB<c0.5>CD", 0, 10000, 0, true, true);
+  assert(timed.size() == 2 && timed[0].start == 0 && timed[0].end == 700 && timed[0].text == "AB");
+  assert(timed[1].start == 700 && timed[1].end == 10000 && timed[1].text == "CD");
+  auto multiplied_clear = build_timing_controlled_text("<r10>AB<c*0.2>CD", 0, 10000, 0, true, true);
+  assert(multiplied_clear.size() == 2 && multiplied_clear[0].end == 600 && multiplied_clear[1].start == 600);
+  auto waited = build_timing_controlled_text("<r10>A<w1>B", 0, 10000, 0, true, true);
+  assert(waited.size() == 2 && waited[0].end == 1100 && waited[0].text == "A");
+  assert(waited[1].start == 1100 && waited[1].text == "AB");
+  auto clear_to_empty = build_timing_controlled_text("<r10>AB<c>", 0, 10000, 0, true, true);
+  assert(clear_to_empty.size() == 1 && clear_to_empty[0].end == 200);
+  auto ignored_newline = build_timing_controlled_text("<r10>AB<c>\r\nCD", 0, 10000, 0, true, true);
+  assert(ignored_newline.size() == 2 && ignored_newline[1].start == 200 && ignored_newline[1].text == "CD");
 }

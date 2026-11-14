@@ -1,6 +1,8 @@
 #pragma once
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <cstdio>
 #include <cwctype>
 #include <set>
@@ -285,6 +287,138 @@ inline std::string sanitize_aviutl_text(const std::string& input, bool keep_ruby
             }
         }
         output += input[index++];
+    }
+    return output;
+}
+
+struct TextTimingControl {
+    char type = 0;
+    double value = 0;
+    bool multiplier = false;
+    bool reset = false;
+};
+
+inline bool parse_text_timing_control(const std::string& token, TextTimingControl& control) {
+    if (token.empty() || (token[0] != 'r' && token[0] != 'w' && token[0] != 'c')) return false;
+    control.type = token[0];
+    std::string value = token.substr(1);
+    if (control.type == 'r' && value.empty()) { control.reset = true; return true; }
+    if (control.type != 'r' && value.empty()) return true;
+    if (control.type != 'r' && value.front() == '*') { control.multiplier = true; value.erase(0, 1); }
+    char* end = nullptr;
+    control.value = std::strtod(value.c_str(), &end);
+    return end && *end == '\0' && std::isfinite(control.value) && control.value >= 0;
+}
+
+inline std::string preserve_text_timing_controls(const std::string& input) {
+    std::string output;
+    for (size_t index = 0; index < input.size();) {
+        if (input[index] == '<') {
+            const size_t end = input.find('>', index + 1);
+            if (end != std::string::npos) {
+                const std::string token = input.substr(index + 1, end - index - 1);
+                TextTimingControl control{};
+                if (parse_text_timing_control(token, control)) {
+                    output += '\x1e';
+                    output += token;
+                    output += '\x1f';
+                    index = end + 1;
+                    continue;
+                }
+            }
+        }
+        output += input[index++];
+    }
+    return output;
+}
+
+inline size_t utf8_character_size(const std::string& value, size_t index) {
+    const unsigned char first = static_cast<unsigned char>(value[index]);
+    if (first < 0x80) return 1;
+    if ((first & 0xe0) == 0xc0 && index + 1 < value.size()) return 2;
+    if ((first & 0xf0) == 0xe0 && index + 2 < value.size()) return 3;
+    if ((first & 0xf8) == 0xf0 && index + 3 < value.size()) return 4;
+    return 1;
+}
+
+// Builds coarse subtitle intervals from AviUtl2's timing controls.  Character
+// reveal is only used to advance time; it never creates one SRT cue per glyph.
+inline std::vector<TimedBlock> build_timing_controlled_text(
+    const std::string& source, int64_t object_start, int64_t object_end,
+    double initial_speed, bool keep_ruby, bool keep_emoji) {
+    std::vector<TimedBlock> output;
+    if (object_end <= object_start) return output;
+    const std::string text = sanitize_aviutl_text(preserve_text_timing_controls(source), keep_ruby, keep_emoji);
+    double cursor = static_cast<double>(object_start);
+    double speed = initial_speed;
+    int visible_count = 0;
+    bool active = false;
+    double active_start = cursor;
+    std::string active_text;
+    // What AviUtl2 is displaying at this point.  A wait keeps this text on
+    // screen, so the next cue starts with it instead of only the new suffix.
+    std::string displayed_text;
+    auto finish = [&] {
+        const int64_t start = static_cast<int64_t>(std::llround(active_start));
+        const int64_t end = std::min<int64_t>(object_end, static_cast<int64_t>(std::llround(cursor)));
+        if (active && !active_text.empty() && end > start) output.push_back({start, end, active_text});
+        active = false;
+        active_text.clear();
+        visible_count = 0;
+    };
+    for (size_t index = 0; index < text.size();) {
+        if (text[index] == '\x1e') {
+            const size_t end = text.find('\x1f', index + 1);
+            if (end != std::string::npos) {
+                TextTimingControl control{};
+                if (parse_text_timing_control(text.substr(index + 1, end - index - 1), control)) {
+                    if (control.type == 'r') speed = control.reset ? initial_speed : control.value;
+                    else {
+                        const double multiplier = control.multiplier ? visible_count : 1;
+                        cursor += control.value * multiplier * 1000.0;
+                        if (control.type == 'c') {
+                            finish();
+                            displayed_text.clear();
+                            visible_count = 0;
+                            index = end + 1;
+                            if (index < text.size() && text[index] == '\r') ++index;
+                            if (index < text.size() && text[index] == '\n') ++index;
+                            continue;
+                        }
+                        // During a wait the already displayed text remains
+                        // visible.  Emit it through the wait, then make the
+                        // following text start a new coarse SRT cue.
+                        if (active) {
+                            const int carried_visible_count = visible_count;
+                            finish();
+                            visible_count = carried_visible_count;
+                        }
+                    }
+                    index = end + 1;
+                    continue;
+                }
+            }
+        }
+        const size_t size = utf8_character_size(text, index);
+        const bool line_break = text[index] == '\r' || text[index] == '\n';
+        if (cursor < object_end) {
+            if (!active && !line_break) {
+                active = true;
+                active_start = cursor;
+                active_text = displayed_text;
+            }
+            if (active) active_text.append(text, index, size);
+            if (!line_break) {
+                displayed_text.append(text, index, size);
+                ++visible_count;
+                if (speed > 0) cursor += 1000.0 / speed;
+            }
+        }
+        index += size;
+    }
+    if (active) {
+        cursor = std::max(cursor, static_cast<double>(object_end));
+        finish();
     }
     return output;
 }

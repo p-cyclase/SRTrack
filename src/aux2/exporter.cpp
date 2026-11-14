@@ -18,7 +18,7 @@ static HINSTANCE module_handle;
 static EDIT_HANDLE* export_edit_handle;
 struct Settings {
  bool all=true, range_all=true, text=true, dialogue=true, srtrack=true;
- bool keep_ruby=true, keep_emoji=true, upper_layer_first=true;
+ bool keep_ruby=true, keep_emoji=true, reflect_timing=true, upper_layer_first=true;
  std::wstring numbers=L"", names=L"", offset=L"0.000", minimum_duration=L"1.000";
 };
 static Settings settings;
@@ -40,6 +40,7 @@ static void load_settings() {
  settings.srtrack=read_string(k,L"srtrack",L"1")==L"1";
  settings.keep_ruby=read_string(k,L"keep_ruby",L"1")==L"1";
  settings.keep_emoji=read_string(k,L"keep_emoji",L"1")==L"1";
+ settings.reflect_timing=read_string(k,L"reflect_timing",L"1")==L"1";
  settings.upper_layer_first=read_string(k,L"simultaneous_order",L"upper")==L"upper";
  settings.numbers=read_string(k,L"numbers",L"");settings.names=read_string(k,L"names",L"");
  settings.offset=read_string(k,L"offset",L"0.000");settings.minimum_duration=read_string(k,L"final_min",L"1.000");
@@ -50,7 +51,7 @@ static bool save_settings() {
  bool ok=true;
  auto put=[&](const wchar_t* n,const std::wstring& v){if(RegSetValueExW(k,n,0,REG_SZ,(const BYTE*)v.c_str(),DWORD((v.size()+1)*sizeof(wchar_t)))!=ERROR_SUCCESS)ok=false;};
  put(L"scope",settings.all?L"all":L"selected");put(L"range",settings.range_all?L"all":L"selected");put(L"text",settings.text?L"1":L"0");put(L"dialogue",settings.dialogue?L"1":L"0");put(L"srtrack",settings.srtrack?L"1":L"0");
- put(L"keep_ruby",settings.keep_ruby?L"1":L"0");put(L"keep_emoji",settings.keep_emoji?L"1":L"0");put(L"simultaneous_order",settings.upper_layer_first?L"upper":L"lower");
+ put(L"keep_ruby",settings.keep_ruby?L"1":L"0");put(L"keep_emoji",settings.keep_emoji?L"1":L"0");put(L"reflect_timing",settings.reflect_timing?L"1":L"0");put(L"simultaneous_order",settings.upper_layer_first?L"upper":L"lower");
  put(L"numbers",settings.numbers);put(L"names",settings.names);put(L"offset",settings.offset);put(L"final_min",settings.minimum_duration);
  RegCloseKey(k);return ok;
 }
@@ -109,14 +110,14 @@ static INT_PTR CALLBACK dialog(HWND h,UINT msg,WPARAM w,LPARAM lParam) {
  if(msg==WM_INITDIALOG){
   HWND tabs=GetDlgItem(h,exporter_tab_id);TCITEMW item{};item.mask=TCIF_TEXT;item.pszText=const_cast<LPWSTR>(L"出力対象");SendMessageW(tabs,TCM_FIRST+62,0,reinterpret_cast<LPARAM>(&item));item.pszText=const_cast<LPWSTR>(L"字幕の整形");SendMessageW(tabs,TCM_FIRST+62,1,reinterpret_cast<LPARAM>(&item));
   output_target_page=CreateDialogParamW(module_handle,MAKEINTRESOURCEW(103),h,exporter_page,0);subtitle_format_page=CreateDialogParamW(module_handle,MAKEINTRESOURCEW(104),h,exporter_page,0);RECT area{};GetClientRect(tabs,&area);TabCtrl_AdjustRect(tabs,FALSE,&area);MapWindowPoints(tabs,h,reinterpret_cast<POINT*>(&area),2);const int page_width=area.right-area.left,page_height=area.bottom-area.top;SetWindowPos(output_target_page,HWND_TOP,area.left,area.top,page_width,page_height,SWP_NOACTIVATE);SetWindowPos(subtitle_format_page,HWND_TOP,area.left,area.top,page_width,page_height,SWP_NOACTIVATE);TabCtrl_SetCurSel(tabs,0);show_exporter_tab(h,0);
-  set_checked(h,1010,settings.all);set_checked(h,1011,!settings.all);set_checked(h,1018,settings.range_all);set_checked(h,1019,!settings.range_all);set_checked(h,1013,settings.text);set_checked(h,1014,settings.dialogue);set_checked(h,1017,settings.srtrack);set_checked(h,1021,settings.keep_ruby);set_checked(h,1022,settings.keep_emoji);set_checked(h,1023,settings.upper_layer_first);set_checked(h,1024,!settings.upper_layer_first);
+  set_checked(h,1010,settings.all);set_checked(h,1011,!settings.all);set_checked(h,1018,settings.range_all);set_checked(h,1019,!settings.range_all);set_checked(h,1013,settings.text);set_checked(h,1014,settings.dialogue);set_checked(h,1017,settings.srtrack);set_checked(h,1021,settings.keep_ruby);set_checked(h,1022,settings.keep_emoji);set_checked(h,1025,settings.reflect_timing);set_checked(h,1023,settings.upper_layer_first);set_checked(h,1024,!settings.upper_layer_first);
   SetWindowTextW(exporter_control(h,1001),settings.numbers.c_str());SetWindowTextW(exporter_control(h,1012),settings.names.c_str());set_seconds_text(h,1002,settings.offset);set_seconds_text(h,1016,settings.minimum_duration);
   original_next_proc=reinterpret_cast<WNDPROC>(SetWindowLongPtrW(GetDlgItem(h,1020),GWLP_WNDPROC,reinterpret_cast<LONG_PTR>(next_button_proc)));enable_scope(h);return TRUE;}
  if(msg==WM_NOTIFY){const auto* notification=reinterpret_cast<const NMHDR*>(lParam);if(notification&&notification->idFrom==exporter_tab_id&&notification->code==TCN_SELCHANGE){show_exporter_tab(h,TabCtrl_GetCurSel(GetDlgItem(h,exporter_tab_id)));return TRUE;}}
  if(msg==WM_COMMAND&&(LOWORD(w)==1010||LOWORD(w)==1011)){enable_scope(h);return TRUE;}
  if(msg==WM_COMMAND&&LOWORD(w)==IDOK)return TRUE;
  if(msg==WM_COMMAND&&LOWORD(w)==1020&&HIWORD(w)==BN_CLICKED){Settings next=settings;next.all=is_checked(h,1010);next.range_all=is_checked(h,1018);next.text=is_checked(h,1013);next.dialogue=is_checked(h,1014);
-  next.numbers=get_text(h,1001);next.names=get_text(h,1012);next.offset=get_text(h,1002);next.minimum_duration=get_text(h,1016);next.srtrack=is_checked(h,1017);next.keep_ruby=is_checked(h,1021);next.keep_emoji=is_checked(h,1022);next.upper_layer_first=is_checked(h,1023);
+  next.numbers=get_text(h,1001);next.names=get_text(h,1012);next.offset=get_text(h,1002);next.minimum_duration=get_text(h,1016);next.srtrack=is_checked(h,1017);next.keep_ruby=is_checked(h,1021);next.keep_emoji=is_checked(h,1022);next.reflect_timing=is_checked(h,1025);next.upper_layer_first=is_checked(h,1023);
   std::set<int> nums;int64_t off,minimum;
   if(!next.text&&!next.dialogue&&!next.srtrack){MessageBoxW(h,L"対象オブジェクトを1つ以上選んでください。",L"入力エラー",MB_ICONWARNING);return TRUE;}
   if(!next.all&&(!parse_layers(next.numbers,nums)||(nums.empty()&&split_names(next.names).empty()))){MessageBoxW(h,L"レイヤー番号または名前を指定してください。番号の例: 3, 5, 8-10",L"入力エラー",MB_ICONWARNING);return TRUE;}
@@ -184,6 +185,17 @@ static void append_standalone_srt(EDIT_SECTION* edit,OBJECT_HANDLE object,const 
  std::string position_value,speed_value;double position=0,speed=0;if(!get_object_item_string(edit,object,effect,L"再生位置",position_value)||!get_object_item_string(edit,object,effect,L"再生速度",speed_value)||!parse_number(position_value,position)||!parse_number(speed_value,speed)||position<0||speed<=0){++warnings;return;}
  const int64_t scene_start=frame_milliseconds(location.start,rate,scale),scene_end=frame_milliseconds(location.end+1,rate,scale);auto mapped=map_srt_to_scene(parsed,scene_start,scene_end,int64_t(std::llround(position*1000)),speed/100);for(auto& block:mapped)sources.push_back({block.start,block.end,std::move(block.text),location.layer,order++});
 }
+static void append_text_source(EDIT_SECTION* edit,OBJECT_HANDLE object,const OBJECT_LAYER_FRAME& location,const wchar_t* effect,int layer,std::vector<SourceTimedCaption>& sources,size_t& order){
+ std::string raw_text;if(!get_object_item_string(edit,object,effect,L"テキスト",raw_text))return;
+ const int64_t start=frame_milliseconds(location.start,edit->info->rate,edit->info->scale),end=frame_milliseconds(location.end+1,edit->info->rate,edit->info->scale);
+ if(!settings.reflect_timing){std::string text=sanitize_aviutl_text(raw_text,settings.keep_ruby,settings.keep_emoji);if(!empty_text(text))sources.push_back({start,end,std::move(text),layer,order++});return;}
+ // The standard text object exposes this item.  Some external dialogue
+ // objects do not; their documented-safe fallback is instantaneous display.
+ double initial_speed=0;std::string speed_value;
+ if(get_object_item_string(edit,object,effect,L"表示速度",speed_value)){double parsed=0;if(parse_number(speed_value,parsed)&&parsed>=0)initial_speed=parsed;}
+ auto blocks=build_timing_controlled_text(raw_text,start,end,initial_speed,settings.keep_ruby,settings.keep_emoji);
+ for(auto& block:blocks)if(!empty_text(block.text))sources.push_back({block.start,block.end,std::move(block.text),layer,order++});
+}
 static void export_subtitles(EDIT_SECTION* edit){
  HWND owner=GetActiveWindow();if(!edit||!edit->info||edit->info->rate<=0||edit->info->scale<=0){MessageBoxW(owner,L"シーン情報を取得できません。",L"SRTrack Exporter",MB_ICONERROR);return;}
  if(DialogBoxParamW(module_handle,MAKEINTRESOURCEW(101),owner,dialog,0)!=IDOK)return;
@@ -198,7 +210,7 @@ static void export_subtitles(EDIT_SECTION* edit){
  for(int layer:layers){int pos=0;while(pos<=edit->info->frame_max){auto obj=edit->find_object(layer,pos);if(!obj)break;auto loc=edit->get_object_layer_frame(obj);if(loc.layer!=layer||loc.end<pos||loc.end==INT_MAX){++warnings;break;}
   const wchar_t* effect=nullptr;bool isdialogue=edit->count_object_effect(obj,L"セリフ準備@PSDToolKit")>0;const SrtrackEffect srtrack_effect=find_srtrack_effect(edit,obj);bool issrtrack=srtrack_effect.kind!=SrtrackObjectKind::none;
   if(isdialogue){if(settings.dialogue)effect=L"セリフ準備@PSDToolKit";}else if(settings.text&&edit->count_object_effect(obj,L"テキスト")>0)effect=L"テキスト";
-  if(effect){const char* raw=edit->get_object_item_value(obj,effect,L"テキスト");if(!raw)++warnings;else{std::string text=sanitize_aviutl_text(decode_value(raw),settings.keep_ruby,settings.keep_emoji);if(!empty_text(text)){sources.push_back({frame_milliseconds(loc.start,edit->info->rate,edit->info->scale),frame_milliseconds(loc.end+1,edit->info->rate,edit->info->scale),std::move(text),layer,source_order++});++caption_count;}}}
+  if(effect){const size_t before=sources.size();append_text_source(edit,obj,loc,effect,layer,sources,source_order);if(sources.size()>before)++caption_count;else{std::string raw_text;if(!get_object_item_string(edit,obj,effect,L"テキスト",raw_text))++warnings;}}
   if(issrtrack&&settings.srtrack){std::vector<SrtCaption> parsed;if(read_srt_source(edit,obj,srtrack_effect.name,parsed,warnings)){if(srtrack_effect.kind==SrtrackObjectKind::standalone)append_standalone_srt(edit,obj,loc,srtrack_effect.name,parsed,edit->info->rate,edit->info->scale,sources,source_order,warnings);else{std::string duration_value;double duration=0;if(get_object_item_string(edit,obj,srtrack_effect.name,L"動画全長",duration_value)&&parse_number(duration_value,duration)&&duration>=0)append_video_bound_srt(edit,obj,loc,srtrack_effect.name,parsed,int64_t(std::llround(duration*1000)),edit->info->rate,edit->info->scale,sources,source_order,warnings);else ++warnings;}++srt_count;}}
   pos=loc.end+1;}}
  if(sources.empty()){MessageBoxW(owner,L"字幕を取得できませんでした。対象レイヤーとオブジェクトを確認してください。",L"SRTrack Exporter",MB_ICONWARNING);return;}
