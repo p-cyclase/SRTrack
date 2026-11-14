@@ -108,11 +108,17 @@ static INT_PTR CALLBACK exporter_page(HWND page,UINT msg,WPARAM w,LPARAM lParam)
  return FALSE;
 }
 struct ExportResultDialogData { const std::wstring* text; bool diagnostics; };
+static std::wstring windows_newlines(const std::wstring& input){
+ std::wstring output;output.reserve(input.size()*2);
+ for(size_t i=0;i<input.size();++i){if(input[i]==L'\n'&&(i==0||input[i-1]!=L'\r'))output+=L'\r';output+=input[i];}
+ return output;
+}
 static INT_PTR CALLBACK exporter_result_dialog(HWND h,UINT msg,WPARAM w,LPARAM l){
  if(msg==WM_INITDIALOG){
   const auto* data=reinterpret_cast<const ExportResultDialogData*>(l);
   SetWindowLongPtrW(h,GWLP_USERDATA,l);
-  SetWindowTextW(GetDlgItem(h,3001),data&&data->text?data->text->c_str():L"");
+  const std::wstring text=data&&data->text?windows_newlines(*data->text):L"";
+  SetWindowTextW(GetDlgItem(h,3001),text.c_str());
   EnableWindow(GetDlgItem(h,3002),data&&data->diagnostics);
   return TRUE;
  }
@@ -190,27 +196,45 @@ static bool read_video_playback(EDIT_SECTION* edit,OBJECT_HANDLE object,VideoPla
  if(!loop_value.empty()&&!parse_check(loop_value,playback.loop))return false;
  return parse_first_number(range,playback.position)&&parse_number(speed_value,playback.speed)&&playback.position>=0&&playback.speed>0;
 }
-static void export_warning(int& warnings,const wchar_t* code,const std::wstring& message,
-                           const std::wstring& result,const wchar_t* object_kind,
-                           const OBJECT_LAYER_FRAME* location=nullptr){
- ++warnings;
- add_diagnostic(DiagnosticSeverity::warning,L"Exporter",code,message,result,object_kind,
+struct ExportDiagnostics { int warnings=0; int errors=0; };
+static const wchar_t* diagnostic_object_name(const wchar_t* object_kind){
+ if(!object_kind)return L"";
+ if(wcscmp(object_kind,L"SRTrackObject")==0)return L"SRTrack Object";
+ if(wcscmp(object_kind,L"SRTrackObject(Standalone)")==0)return L"SRTrack Object (Standalone)";
+ return object_kind;
+}
+static void export_diagnostic(ExportDiagnostics& diagnostics,DiagnosticSeverity severity,
+                              const wchar_t* code,const std::wstring& message,
+                              const std::wstring& result,const wchar_t* object_kind,
+                              const OBJECT_LAYER_FRAME* location=nullptr){
+ if(severity==DiagnosticSeverity::warning)++diagnostics.warnings;
+ if(severity==DiagnosticSeverity::error)++diagnostics.errors;
+ add_diagnostic(severity,L"Exporter",code,message,result,diagnostic_object_name(object_kind),
                 location?location->layer:-1,location?location->start:-1,location?location->end:-1);
 }
-static bool read_srt_source(EDIT_SECTION* edit,OBJECT_HANDLE object,const wchar_t* effect,const OBJECT_LAYER_FRAME& location,std::vector<SrtCaption>& parsed,int& warnings){
- std::string file_value;if(!get_object_item_string(edit,object,effect,L"SRT ファイル",file_value,false)){export_warning(warnings,L"EXP-SRT-PATH",L"SRT ファイルの設定を取得できません。",L"この Object を除外しました。",effect,&location);return false;}std::wstring file;if(!utf8_to_wide(file_value,file)||file.empty()){export_warning(warnings,L"EXP-SRT-PATH",L"SRT ファイルのパスが不正または未指定です。",L"この Object を除外しました。",effect,&location);return false;}std::string bytes;if(!read_file(file.c_str(),bytes)){export_warning(warnings,L"EXP-SRT-READ",L"指定された SRT ファイルを読み込めません。",L"この Object を除外しました。",effect,&location);return false;}size_t rejected=0;parsed=parse_srt(bytes,&rejected);if(rejected)export_warning(warnings,L"EXP-SRT-PARSE",L"SRT 内に読み取れない字幕区間があります。",L"読み取れた字幕だけを出力します。",effect,&location);return true;
+static bool read_srt_source(EDIT_SECTION* edit,OBJECT_HANDLE object,const wchar_t* effect,const OBJECT_LAYER_FRAME& location,std::vector<SrtCaption>& parsed,ExportDiagnostics& diagnostics){
+ std::string file_value;if(!get_object_item_string(edit,object,effect,L"SRT ファイル",file_value,false)){export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-SRT-PATH",L"SRT ファイルの設定を取得できません。",L"この Object を除外しました。",effect,&location);return false;}std::wstring file;if(!utf8_to_wide(file_value,file)||file.empty()){export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-SRT-PATH",L"SRT ファイルのパスが不正または未指定です。",L"この Object を除外しました。",effect,&location);return false;}std::string bytes;if(!read_file(file.c_str(),bytes)){export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-SRT-READ",L"指定された SRT ファイルを読み込めません。",L"この Object を除外しました。",effect,&location);return false;}size_t rejected=0;parsed=parse_srt(bytes,&rejected);if(rejected)export_diagnostic(diagnostics,DiagnosticSeverity::warning,L"EXP-SRT-PARSE",L"SRT 内に読み取れない字幕区間があります。",L"読み取れた字幕だけを出力します。",effect,&location);return true;
 }
-static void append_video_bound_srt(EDIT_SECTION* edit,OBJECT_HANDLE object,const OBJECT_LAYER_FRAME& location,const wchar_t* effect,const std::vector<SrtCaption>& parsed,int64_t source_duration,int rate,int scale,std::vector<SourceTimedCaption>& sources,size_t& order,int& warnings){
- if(location.layer<=0){export_warning(warnings,L"EXP-VIDEO-MISSING",L"上のレイヤーに参照できる動画がありません。",L"この Object を除外しました。",effect,&location);return;}const int video_layer=location.layer-1;int probe=location.start;
- while(probe<=location.end){OBJECT_HANDLE video=edit->find_object(video_layer,probe);if(!video){export_warning(warnings,L"EXP-VIDEO-MISSING",L"上のレイヤーに参照できる動画がありません。",L"動画がない区間を除外しました。",effect,&location);break;}auto video_location=edit->get_object_layer_frame(video);if(video_location.layer!=video_layer||video_location.end<probe){export_warning(warnings,L"EXP-VIDEO-LOCATION",L"参照動画のタイムライン範囲を取得できません。",L"該当区間を除外しました。",effect,&location);break;}probe=video_location.end+1;if(!edit->count_object_effect(video,L"動画ファイル")){export_warning(warnings,L"EXP-VIDEO-MISSING",L"上のレイヤーの Object は動画ではありません。",L"該当区間を除外しました。",effect,&location);continue;
-  }VideoPlayback playback;if(!read_video_playback(edit,video,playback)){export_warning(warnings,L"EXP-VIDEO-PLAYBACK",L"参照動画の再生設定を取得できません。",L"該当区間を除外しました。",effect,&location);continue;}const int segment_start=std::max(location.start,video_location.start),segment_end=std::min(location.end+1,video_location.end+1);if(segment_end<=segment_start)continue;
-  const int64_t scene_start=frame_milliseconds(segment_start,rate,scale),scene_end=frame_milliseconds(segment_end,rate,scale),video_start=frame_milliseconds(video_location.start,rate,scale);if(playback.loop&&source_duration<=0){export_warning(warnings,L"EXP-VIDEO-DURATION",L"ループ再生に必要な動画全長を取得できません。",L"該当区間を除外しました。",effect,&location);continue;}
+static void append_video_bound_srt(EDIT_SECTION* edit,OBJECT_HANDLE object,const OBJECT_LAYER_FRAME& location,const wchar_t* effect,const std::vector<SrtCaption>& parsed,int64_t source_duration,int rate,int scale,std::vector<SourceTimedCaption>& sources,size_t& order,ExportDiagnostics& diagnostics){
+ if(location.layer<=0){export_diagnostic(diagnostics,DiagnosticSeverity::info,L"EXP-VIDEO-END",L"直上に動画がないため字幕を終了しました。",L"該当区間は出力しません。",effect,&location);return;}
+ const int video_layer=location.layer-1;int probe=location.start;
+ while(probe<=location.end){
+  OBJECT_HANDLE video=edit->find_object(video_layer,probe);
+  if(!video){export_diagnostic(diagnostics,DiagnosticSeverity::info,L"EXP-VIDEO-END",L"直上に動画がないため字幕を終了しました。",L"該当区間は出力しません。",effect,&location);break;}
+  auto video_location=edit->get_object_layer_frame(video);
+  if(video_location.layer!=video_layer||video_location.end<probe){export_diagnostic(diagnostics,DiagnosticSeverity::warning,L"EXP-VIDEO-LOCATION",L"参照動画のタイムライン範囲を取得できません。",L"該当区間を除外しました。",effect,&location);break;}
+  if(video_location.start>probe){export_diagnostic(diagnostics,DiagnosticSeverity::info,L"EXP-VIDEO-END",L"直上の動画がない区間で字幕を終了しました。",L"次の動画が現れるまでの区間は出力しません。",effect,&location);break;}
+  probe=video_location.end+1;
+  if(!edit->count_object_effect(video,L"動画ファイル")){export_diagnostic(diagnostics,DiagnosticSeverity::info,L"EXP-VIDEO-END",L"直上の Object が動画ではないため字幕を終了しました。",L"該当区間は出力しません。",effect,&location);continue;}
+  VideoPlayback playback;if(!read_video_playback(edit,video,playback)){export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-VIDEO-PLAYBACK",L"参照動画の再生設定を取得できません。",L"該当区間を除外しました。",effect,&location);continue;}
+  const int segment_start=std::max(location.start,video_location.start),segment_end=std::min(location.end+1,video_location.end+1);if(segment_end<=segment_start)continue;
+  const int64_t scene_start=frame_milliseconds(segment_start,rate,scale),scene_end=frame_milliseconds(segment_end,rate,scale),video_start=frame_milliseconds(video_location.start,rate,scale);if(playback.loop&&source_duration<=0){export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-VIDEO-DURATION",L"ループ再生に必要な動画全長を取得できません。",L"該当区間を除外しました。",effect,&location);continue;}
   auto mapped=map_video_bound_srt_segment(parsed,scene_start,scene_end,video_start,int64_t(std::llround(playback.position*1000)),playback.speed/100,playback.loop,source_duration);
   for(auto& block:mapped)sources.push_back({block.start,block.end,std::move(block.text),location.layer,order++});
  }
 }
-static void append_standalone_srt(EDIT_SECTION* edit,OBJECT_HANDLE object,const OBJECT_LAYER_FRAME& location,const wchar_t* effect,const std::vector<SrtCaption>& parsed,int rate,int scale,std::vector<SourceTimedCaption>& sources,size_t& order,int& warnings){
- std::string position_value,speed_value;double position=0,speed=0;if(!get_object_item_string(edit,object,effect,L"再生位置",position_value)||!get_object_item_string(edit,object,effect,L"再生速度",speed_value)||!parse_number(position_value,position)||!parse_number(speed_value,speed)||position<0||speed<=0){export_warning(warnings,L"EXP-STANDALONE-PLAYBACK",L"Standalone Object の再生設定を取得できません。",L"この Object を除外しました。",effect,&location);return;}
+static void append_standalone_srt(EDIT_SECTION* edit,OBJECT_HANDLE object,const OBJECT_LAYER_FRAME& location,const wchar_t* effect,const std::vector<SrtCaption>& parsed,int rate,int scale,std::vector<SourceTimedCaption>& sources,size_t& order,ExportDiagnostics& diagnostics){
+ std::string position_value,speed_value;double position=0,speed=0;if(!get_object_item_string(edit,object,effect,L"再生位置",position_value)||!get_object_item_string(edit,object,effect,L"再生速度",speed_value)||!parse_number(position_value,position)||!parse_number(speed_value,speed)||position<0||speed<=0){export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-STANDALONE-PLAYBACK",L"Standalone Object の再生設定を取得できません。",L"この Object を除外しました。",effect,&location);return;}
  const int64_t scene_start=frame_milliseconds(location.start,rate,scale),scene_end=frame_milliseconds(location.end+1,rate,scale);auto mapped=map_srt_to_scene(parsed,scene_start,scene_end,int64_t(std::llround(position*1000)),speed/100);for(auto& block:mapped)sources.push_back({block.start,block.end,std::move(block.text),location.layer,order++});
 }
 static void append_text_source(EDIT_SECTION* edit,OBJECT_HANDLE object,const OBJECT_LAYER_FRAME& location,const wchar_t* effect,int layer,std::vector<SourceTimedCaption>& sources,size_t& order){
@@ -235,12 +259,12 @@ static void export_subtitles(EDIT_SECTION* edit){
   for(size_t j=0;j<names.size();++j)if(!found[j])missing.push_back(names[j]);}
  if(!missing.empty()){std::wstring message=L"次のレイヤー名が見つかりませんでした。\n";for(const auto& n:missing)message+=L"・"+n+L"\n";message+=L"\n見つかった対象で続行しますか？";add_diagnostic(DiagnosticSeverity::warning,L"Exporter",L"EXP-LAYER-NOT-FOUND",L"指定されたレイヤー名が見つかりません。",L"見つかった対象だけで続行を確認します。");if(MessageBoxW(owner,message.c_str(),L"SRTrack Exporter",MB_YESNO|MB_ICONWARNING)!=IDYES)return;}
  if(!settings.range_all&&(edit->info->select_range_start<0||edit->info->select_range_end<edit->info->select_range_start)){add_diagnostic(DiagnosticSeverity::error,L"Exporter",L"EXP-RANGE-MISSING",L"フレーム範囲選択が指定されていません。",L"出力を中止しました。");MessageBoxW(owner,L"フレーム範囲選択を指定してください。",L"SRTrack Exporter",MB_ICONWARNING);return;}
- std::vector<SourceTimedCaption> sources;int warnings=0;size_t source_order=0,caption_count=0,srt_count=0;
- for(int layer:layers){int pos=0;while(pos<=edit->info->frame_max){auto obj=edit->find_object(layer,pos);if(!obj)break;auto loc=edit->get_object_layer_frame(obj);if(loc.layer!=layer||loc.end<pos||loc.end==INT_MAX){export_warning(warnings,L"EXP-OBJECT-LOCATION",L"Object のタイムライン範囲を取得できません。",L"このレイヤーの以降の Object を確認できません。",L"",&loc);break;}
+ std::vector<SourceTimedCaption> sources;ExportDiagnostics diagnostics;size_t source_order=0,caption_count=0,srt_count=0;
+ for(int layer:layers){int pos=0;while(pos<=edit->info->frame_max){auto obj=edit->find_object(layer,pos);if(!obj)break;auto loc=edit->get_object_layer_frame(obj);if(loc.layer!=layer||loc.end<pos||loc.end==INT_MAX){export_diagnostic(diagnostics,DiagnosticSeverity::warning,L"EXP-OBJECT-LOCATION",L"Object のタイムライン範囲を取得できません。",L"このレイヤーの以降の Object を確認できません。",L"",&loc);break;}
   const wchar_t* effect=nullptr;bool isdialogue=edit->count_object_effect(obj,L"セリフ準備@PSDToolKit")>0;const SrtrackEffect srtrack_effect=find_srtrack_effect(edit,obj);bool issrtrack=srtrack_effect.kind!=SrtrackObjectKind::none;
   if(isdialogue){if(settings.dialogue)effect=L"セリフ準備@PSDToolKit";}else if(settings.text&&edit->count_object_effect(obj,L"テキスト")>0)effect=L"テキスト";
-  if(effect){const size_t before=sources.size();append_text_source(edit,obj,loc,effect,layer,sources,source_order);if(sources.size()>before)++caption_count;else{std::string raw_text;if(!get_object_item_string(edit,obj,effect,L"テキスト",raw_text))export_warning(warnings,L"EXP-TEXT-READ",L"テキスト内容を取得できません。",L"この Object を除外しました。",effect,&loc);}}
-  if(issrtrack&&settings.srtrack){std::vector<SrtCaption> parsed;if(read_srt_source(edit,obj,srtrack_effect.name,loc,parsed,warnings)){if(srtrack_effect.kind==SrtrackObjectKind::standalone)append_standalone_srt(edit,obj,loc,srtrack_effect.name,parsed,edit->info->rate,edit->info->scale,sources,source_order,warnings);else{std::string duration_value;double duration=0;if(get_object_item_string(edit,obj,srtrack_effect.name,L"動画全長",duration_value)&&parse_number(duration_value,duration)&&duration>=0)append_video_bound_srt(edit,obj,loc,srtrack_effect.name,parsed,int64_t(std::llround(duration*1000)),edit->info->rate,edit->info->scale,sources,source_order,warnings);else export_warning(warnings,L"EXP-VIDEO-DURATION",L"動画全長を取得できません。",L"この Object を除外しました。",srtrack_effect.name,&loc);}++srt_count;}}
+  if(effect){const size_t before=sources.size();append_text_source(edit,obj,loc,effect,layer,sources,source_order);if(sources.size()>before)++caption_count;else{std::string raw_text;if(!get_object_item_string(edit,obj,effect,L"テキスト",raw_text))export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-TEXT-READ",L"テキスト内容を取得できません。",L"この Object を除外しました。",effect,&loc);}}
+  if(issrtrack&&settings.srtrack){std::vector<SrtCaption> parsed;if(read_srt_source(edit,obj,srtrack_effect.name,loc,parsed,diagnostics)){if(srtrack_effect.kind==SrtrackObjectKind::standalone)append_standalone_srt(edit,obj,loc,srtrack_effect.name,parsed,edit->info->rate,edit->info->scale,sources,source_order,diagnostics);else{std::string duration_value;double duration=0;if(get_object_item_string(edit,obj,srtrack_effect.name,L"動画全長",duration_value)&&parse_number(duration_value,duration)&&duration>=0)append_video_bound_srt(edit,obj,loc,srtrack_effect.name,parsed,int64_t(std::llround(duration*1000)),edit->info->rate,edit->info->scale,sources,source_order,diagnostics);else export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-VIDEO-DURATION",L"動画全長を取得できません。",L"この Object を除外しました。",srtrack_effect.name,&loc);}++srt_count;}}
   pos=loc.end+1;}}
  if(sources.empty()){add_diagnostic(DiagnosticSeverity::warning,L"Exporter",L"EXP-CAPTION-EMPTY",L"字幕を取得できませんでした。",L"出力を中止しました。");MessageBoxW(owner,L"字幕を取得できませんでした。対象レイヤーとオブジェクトを確認してください。",L"SRTrack Exporter",MB_ICONWARNING);return;}
  int64_t offset=0,minimum=1000;parse_offset(settings.offset,offset);parse_offset(settings.minimum_duration,minimum);
@@ -248,11 +272,12 @@ static void export_subtitles(EDIT_SECTION* edit){
  if(output.empty()){add_diagnostic(DiagnosticSeverity::warning,L"Exporter",L"EXP-OFFSET-EMPTY",L"オフセット適用後の字幕がありません。",L"出力を中止しました。");MessageBoxW(owner,L"オフセットを適用すると全ての字幕が動画開始前になるため、出力できません。",L"SRTrack Exporter",MB_ICONWARNING);return;}
  wchar_t path[32768]=L"subtitles.srt";std::wstring suggested_path;if(suggested_srt_path(edit,suggested_path)&&suggested_path.size()<std::size(path))wcscpy_s(path,suggested_path.c_str());OPENFILENAMEW ofn{};ofn.lStructSize=sizeof(ofn);ofn.hwndOwner=owner;ofn.lpstrFilter=L"SRT 字幕 (*.srt)\0*.srt\0\0";ofn.lpstrFile=path;ofn.nMaxFile=32768;ofn.lpstrDefExt=L"srt";ofn.Flags=OFN_OVERWRITEPROMPT|OFN_PATHMUSTEXIST|OFN_NOCHANGEDIR;
  if(!GetSaveFileNameW(&ofn))return;if(!write_file(path,output)){add_diagnostic(DiagnosticSeverity::error,L"Exporter",L"EXP-FILE-WRITE",L"SRT ファイルを書き込めません。",L"出力を中止しました。");MessageBoxW(owner,L"ファイルの書き込みに失敗しました。",L"SRTrack Exporter",MB_ICONERROR);return;}
- const std::wstring result=L"対象: "+std::to_wstring(caption_count+srt_count)+L" 件、字幕: "+std::to_wstring(shifted.size())+L" 件、開始前のため除外: "+std::to_wstring(omitted)+L" 件、警告: "+std::to_wstring(warnings)+L" 件";
- add_diagnostic(warnings?DiagnosticSeverity::warning:DiagnosticSeverity::info,L"Exporter",L"EXP-EXPORT-COMPLETE",L"SRT の出力が完了しました。",result);
+ const std::wstring result=L"対象: "+std::to_wstring(caption_count+srt_count)+L" 件、字幕: "+std::to_wstring(shifted.size())+L" 件、開始前のため除外: "+std::to_wstring(omitted)+L" 件、エラー: "+std::to_wstring(diagnostics.errors)+L" 件、警告: "+std::to_wstring(diagnostics.warnings)+L" 件";
+ const bool has_attention=diagnostics.errors>0||diagnostics.warnings>0;
+ add_diagnostic(diagnostics.errors>0?DiagnosticSeverity::error:(diagnostics.warnings>0?DiagnosticSeverity::warning:DiagnosticSeverity::info),L"Exporter",L"EXP-EXPORT-COMPLETE",L"SRT の出力が完了しました。",result);
  std::wstring msg=L"出力しました。\n"+result+L"\n\n"+path;
- if(warnings)msg+=L"\n\n診断内容:\n"+format_diagnostics_since(diagnostic_start);
- show_export_result(owner,msg,warnings>0);
+ if(has_attention)msg+=L"\n\n診断内容:\n"+format_diagnostics_since(diagnostic_start);
+ show_export_result(owner,msg,true);
 }
 BOOL WINAPI DllMain(HINSTANCE instance,DWORD reason,LPVOID){if(reason==DLL_PROCESS_ATTACH){module_handle=instance;initialize_importer(instance);}return TRUE;}
 extern "C" __declspec(dllexport) COMMON_PLUGIN_TABLE* GetCommonPluginTable(){static COMMON_PLUGIN_TABLE t{L"SRTrack",L"SRT 字幕の出力と同名 SRT の取込を支援します"};return &t;}
