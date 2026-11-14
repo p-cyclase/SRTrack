@@ -150,12 +150,12 @@ static SrtrackEffect find_srtrack_effect(EDIT_SECTION* edit,OBJECT_HANDLE object
  if(edit->count_object_effect(object,L"SRTrackObject")>0)return {SrtrackObjectKind::video_bound,L"SRTrackObject"};
  return {};
 }
-static bool get_object_item_string(EDIT_SECTION* edit,OBJECT_HANDLE object,const wchar_t* effect,const wchar_t* item,std::string& value){
+static bool get_object_item_string(EDIT_SECTION* edit,OBJECT_HANDLE object,const wchar_t* effect,const wchar_t* item,std::string& value,bool decode_escapes=true){
  const char* raw=edit->get_object_item_value(object,effect,item);
  if(!raw)return false;
  // The SDK invalidates raw on the next string-returning API call.  Copy before
  // asking for any other Object value.
- value=decode_value(raw);
+ value=decode_escapes?decode_value(raw):raw;
  return true;
 }
 static bool parse_number(const std::string& input,double& output){char* end=nullptr;output=std::strtod(input.c_str(),&end);return end&&*end=='\0'&&std::isfinite(output);}
@@ -170,7 +170,7 @@ static bool read_video_playback(EDIT_SECTION* edit,OBJECT_HANDLE object,VideoPla
  return parse_first_number(range,playback.position)&&parse_number(speed_value,playback.speed)&&playback.position>=0&&playback.speed>0;
 }
 static bool read_srt_source(EDIT_SECTION* edit,OBJECT_HANDLE object,const wchar_t* effect,std::vector<SrtCaption>& parsed,int& warnings){
- std::string file_value;if(!get_object_item_string(edit,object,effect,L"SRT ファイル",file_value)){++warnings;return false;}std::wstring file;if(!utf8_to_wide(file_value,file)||file.empty()){++warnings;return false;}std::string bytes;if(!read_file(file.c_str(),bytes)){++warnings;return false;}size_t rejected=0;parsed=parse_srt(bytes,&rejected);if(rejected)++warnings;return true;
+ std::string file_value;if(!get_object_item_string(edit,object,effect,L"SRT ファイル",file_value,false)){++warnings;return false;}std::wstring file;if(!utf8_to_wide(file_value,file)||file.empty()){++warnings;return false;}std::string bytes;if(!read_file(file.c_str(),bytes)){++warnings;return false;}size_t rejected=0;parsed=parse_srt(bytes,&rejected);if(rejected)++warnings;return true;
 }
 static void append_video_bound_srt(EDIT_SECTION* edit,OBJECT_HANDLE object,const OBJECT_LAYER_FRAME& location,const wchar_t* effect,const std::vector<SrtCaption>& parsed,int64_t source_duration,int rate,int scale,std::vector<SourceTimedCaption>& sources,size_t& order,int& warnings){
  if(location.layer<=0)return;const int video_layer=location.layer-1;int probe=location.start;
