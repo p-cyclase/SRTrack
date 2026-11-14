@@ -33,6 +33,10 @@ SRTrack は、旧単一 Object の役割を二つの Object に分けていま�
 
 現行・次期の正規仕様は [全体仕様書](docs/spec/README.md) を参照してください。[初期検討メモ](docs/srtrack-design.md) と `docs/components/` の一部は履歴資料であり、正規仕様ではありません。
 
+## 開発・検証
+
+`tests/manual/SRTrack-Regression.aup2` は Preview／Exporter の共通手動回帰プロジェクトです。SRT fixture とプロジェクトは Git 管理し、動画 fixture と出力結果はローカルで扱います。実施方法と確認項目は [手動回帰テスト仕様](docs/spec/09-manual-regression-test.md) を参照してください。将来の常設診断は、通常の作業を妨げず、必要時に不具合報告へ使える情報を確認できる形で実装します。方針は [エラー・検証仕様](docs/spec/05-errors-and-validation.md) にあります。
+
 ## 前提プラグイン
 
 Importer を使う場合は GCMZDrops2 と L-SMASH Works が必要です。いずれも SRTrack には同梱しません。SRTrack は GCMZDrops2 の公開 API のみを利用し、AviUtl2 標準 Object 以外の外部ファイルやプラグインのリバースエンジニアリングは行いません。

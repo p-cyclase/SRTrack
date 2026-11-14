@@ -24,3 +24,9 @@ Monitor は旧構成の初期実装であり、採用しない。詳細は [07-m
 ## 1.3 対象外
 
 字幕の動画への焼き込み、音声認識、自動翻訳、YouTube への自動アップロード、動画ファイル名変更への SRT 自動追従は行わない。逆再生、可変速度、中間点、シーンをまたぐ利用は初期対象外である。標準テキストの時間制御文字は Exporter の範囲で対応するが、文字送りを一文字ごとの SRT 字幕として再現しない。
+
+## 1.4 開発・検証の共通環境
+
+`tests/manual/SRTrack-Regression.aup2` は、Preview と Exporter の代表的な挙動を一度に確認する手動回帰プロジェクトである。実装変更後は、標準設定で出力した SRT とテストマップを照合し、機能ごとの実際の結果を観察する。Importer のドロップ操作はこのプロジェクトに含めず、空シーンで別途確認する。
+
+テスト用の `.aup2` と SRT fixture は Git 管理する一方、動画 fixture と Exporter 等の生成物は Git 管理しない。常設診断の設計方針と、テストプロジェクトの詳細な扱いはそれぞれ [05-errors-and-validation.md](05-errors-and-validation.md) と [09-manual-regression-test.md](09-manual-regression-test.md) を正とする。
