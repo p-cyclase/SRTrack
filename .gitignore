@@ -24,3 +24,8 @@ out/
 *.srt
 *.wav
 *.mp4
+*.psdtoolkit
+
+# Versioned manual-test project and subtitle fixtures
+!tests/manual/**/*.aup2
+!tests/manual/**/*.srt
