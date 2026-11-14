@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "diagnostics.h"
 #include "importer.h"
 #include "../../third_party/aviutl2-sdk/plugin2.h"
 
@@ -102,10 +103,12 @@ bool read_file(const wchar_t* path, std::string& output) {
   return ok;
 }
 
-int srt_length_frames(const wchar_t* path, const EDIT_INFO* info) {
+int srt_length_frames(const wchar_t* path, const EDIT_INFO* info, bool* readable) {
+  if (readable) *readable = false;
   if (!info || info->rate <= 0 || info->scale <= 0) return 1;
   std::string contents;
   if (!read_file(path, contents)) return 1;
+  if (readable) *readable = true;
   int64_t largest_ms = 0;
   size_t pos = 0;
   while ((pos = contents.find("-->", pos)) != std::string::npos) {
@@ -125,15 +128,35 @@ int srt_length_frames(const wchar_t* path, const EDIT_INFO* info) {
 }
 
 void on_srt_file_drop(EDIT_SECTION* edit, LPCWSTR file) {
-  if (!edit || !edit->info || !file) return;
+  if (!edit || !edit->info || !file) {
+    add_diagnostic(DiagnosticSeverity::error, L"Importer", L"IMP-SRT-INPUT",
+                   L"SRT 単体ドロップの入力情報を取得できません。", L"Object を作成しませんでした。");
+    return;
+  }
   std::string path = wide_to_utf8(file);
-  if (path.empty() || path.find_first_of("\r\n") != std::string::npos) return;
-  const int length = srt_length_frames(file, edit->info);
+  if (path.empty() || path.find_first_of("\r\n") != std::string::npos) {
+    add_diagnostic(DiagnosticSeverity::error, L"Importer", L"IMP-SRT-PATH",
+                   L"SRT ファイルのパスを安全に扱えません。", L"Object を作成しませんでした。");
+    return;
+  }
+  bool readable = false;
+  const int length = srt_length_frames(file, edit->info, &readable);
+  if (!readable) {
+    add_diagnostic(DiagnosticSeverity::warning, L"Importer", L"IMP-SRT-READ",
+                   L"SRT ファイルを読み込めないため、最小の長さで Object を作成します。",
+                   L"Object を作成して設定を続行しました。");
+  }
   const wchar_t* effect = importer_settings.standalone
       ? L"SRTrackObject(Standalone)" : L"SRTrackObject";
   OBJECT_HANDLE object = edit->create_object(effect, edit->info->layer,
                                               edit->info->frame, length);
-  if (!object) return;
+  if (!object) {
+    add_diagnostic(DiagnosticSeverity::error, L"Importer", L"IMP-SRT-CREATE",
+                   L"SRT 用 Object を作成できません。", L"通常入力へは委譲できませんでした。",
+                   effect, edit->info->layer, edit->info->frame,
+                   edit->info->frame + length - 1);
+    return;
+  }
   // This is intentionally not an alias: a lone SRT has no paired media or
   // group structure to reproduce.  It is the same Object a user can insert
   // from AviUtl2's Object menu, with only its initial values supplied here.
@@ -142,6 +165,32 @@ void on_srt_file_drop(EDIT_SECTION* edit, LPCWSTR file) {
     edit->set_object_item_value(object, effect, L"動画全長", "0.000");
   }
   edit->set_object_item_value(object, effect, L"字幕プレビュー", "1");
+  add_diagnostic(DiagnosticSeverity::info, L"Importer", L"IMP-SRT-CREATE",
+                 L"SRT 単体ドロップから Object を作成しました。", L"SRTrack で取り込みました。",
+                 effect, edit->info->layer, edit->info->frame,
+                 edit->info->frame + length - 1);
+}
+
+void refresh_diagnostic_log(HWND dialog) {
+  HWND list = GetDlgItem(dialog, 2005);
+  if (!list) return;
+  SendMessageW(list, LB_RESETCONTENT, 0, 0);
+  const auto entries = snapshot_diagnostics();
+  if (entries.empty()) {
+    SendMessageW(list, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"診断ログはありません。"));
+    return;
+  }
+  for (const auto& entry : entries) {
+    std::wstring line = L"[";
+    line += diagnostic_severity_name(entry.severity);
+    line += L"] ";
+    line += entry.feature;
+    line += L" ";
+    line += entry.code;
+    line += L" — ";
+    line += entry.message;
+    SendMessageW(list, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(line.c_str()));
+  }
 }
 
 void enable_srt_object_choices(HWND dialog) {
@@ -159,10 +208,23 @@ INT_PTR CALLBACK importer_settings_dialog(HWND dialog, UINT message,
       CheckRadioButton(dialog, 2003, 2004,
                        importer_settings.standalone ? 2004 : 2003);
       enable_srt_object_choices(dialog);
+      refresh_diagnostic_log(dialog);
       return TRUE;
     case WM_COMMAND:
       if (LOWORD(wparam) == 2002) {
         enable_srt_object_choices(dialog);
+        return TRUE;
+      }
+      if (LOWORD(wparam) == 2006) {
+        if (!copy_diagnostic_report(dialog)) {
+          MessageBoxW(dialog, L"診断情報をクリップボードへコピーできませんでした。",
+                      L"SRTrack 診断ログ", MB_ICONWARNING);
+        }
+        return TRUE;
+      }
+      if (LOWORD(wparam) == 2007) {
+        clear_diagnostics();
+        refresh_diagnostic_log(dialog);
         return TRUE;
       }
       if (LOWORD(wparam) == IDOK) {
@@ -210,13 +272,34 @@ bool get_script_path(wchar_t* path, DWORD capacity) {
 void register_handler_script() {
   if (registered) return;
   const HMODULE gcmz = GetModuleHandleW(L"GCMZDrops.aux2");
-  if (!gcmz) return;
+  if (!gcmz) {
+    add_diagnostic(DiagnosticSeverity::warning, L"Importer", L"IMP-HANDLER-UNAVAILABLE",
+                   L"GCMZDrops2 を取得できないため、動画ペア取込を登録できません。",
+                   L"通常の動画ドロップへ委ねます。");
+    return;
+  }
   const auto add_handler = reinterpret_cast<AddHandlerScriptFile>(
       GetProcAddress(gcmz, "AddHandlerScriptFile"));
-  if (!add_handler) return;
+  if (!add_handler) {
+    add_diagnostic(DiagnosticSeverity::warning, L"Importer", L"IMP-HANDLER-API",
+                   L"GCMZDrops2 の公開ハンドラー API を取得できません。",
+                   L"通常の動画ドロップへ委ねます。");
+    return;
+  }
   wchar_t script_path[32768];
-  if (!get_script_path(script_path, _countof(script_path))) return;
+  if (!get_script_path(script_path, _countof(script_path))) {
+    add_diagnostic(DiagnosticSeverity::error, L"Importer", L"IMP-HANDLER-PATH",
+                   L"動画ペア取込用スクリプトの場所を取得できません。",
+                   L"通常の動画ドロップへ委ねます。");
+    return;
+  }
   registered = add_handler(script_path);
+  add_diagnostic(registered ? DiagnosticSeverity::info : DiagnosticSeverity::warning,
+                 L"Importer", registered ? L"IMP-HANDLER-REGISTERED" : L"IMP-HANDLER-REGISTER",
+                 registered ? L"動画ペア取込ハンドラーを登録しました。"
+                            : L"動画ペア取込ハンドラーを登録できません。",
+                 registered ? L"次回以降の動画ドロップで利用します。"
+                            : L"通常の動画ドロップへ委ねます。");
 }
 
 }  // namespace
