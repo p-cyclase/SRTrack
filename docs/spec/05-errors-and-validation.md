@@ -29,6 +29,8 @@ SRTrack は、公開されている AviUtl2 の公式ドキュメントと Plugi
 
 以下は旧単一 Object と Monitor を前提にした検証記録である。新しい二種類の Object の正規の受け入れ条件ではない。
 
+現行の Preview／Exporter 手動回帰確認は、[09-manual-regression-test.md](09-manual-regression-test.md) のテスト用プロジェクト計画に従う。Importer のドロップ確認はそのプロジェクトに含めず、別の空シーン試験として扱う。
+
 ### SRT 解析
 
 1. UTF-8 BOM の有無、CRLF／LF、末尾空行、複数行本文。
