@@ -6,7 +6,7 @@ SRTrack は AviUtl ExEdit2 上の字幕ソースを統合し、編集後のタ�
 
 レンダリング済み動画だけから、元の字幕文字列とタイミングを正確に復元することは難しい。SRTrack は動画と対応する SRT をタイムラインへ置き、動画を連結・切抜き・分割・速度変更した後にも、元字幕に近い SRT を再出力できるようにする。
 
-このための字幕 Object は二種類である。`SRTrack Object` は自身の1つ上のレイヤー（Layer 1 側）の標準動画 Object を必要な時だけ参照する主用途の Object、`SRTrack Object (Standalone)` は動画に依存せず自身の再生開始位置と速度を保持する補助的な Object である。動画の状態をコピーし続ける常駐 Monitor は採用しない。
+このための字幕 Object は二種類である。`SRTrack Object` は自身よりLayer 1側で最も近い標準動画 Object（上側の直前動画Object）を必要な時だけ参照する主用途の Object、`SRTrack Object (Standalone)` は動画に依存せず自身の再生開始位置と速度を保持する補助的な Object である。動画の状態をコピーし続ける常駐 Monitor は採用しない。
 
 ## 文書
 
@@ -14,7 +14,7 @@ SRTrack は AviUtl ExEdit2 上の字幕ソースを統合し、編集後のタ�
 | --- | --- |
 | [01-overview.md](01-overview.md) | 構成、利用の流れ、対象外 |
 | [02-srt-source.md](02-srt-source.md) | SRTrack Object／SRTrack Object (Standalone) と SRT 入力 |
-| [03-timing.md](03-timing.md) | 時間変換と1つ上のレイヤーの動画参照 |
+| [03-timing.md](03-timing.md) | 時間変換と上側の直前動画Object参照 |
 | [04-export.md](04-export.md) | 字幕統合と SRT 出力 |
 | [05-errors-and-validation.md](05-errors-and-validation.md) | エラー、互換性、検証計画 |
 | [06-importer.md](06-importer.md) | Importer の初期配置 |
@@ -24,7 +24,7 @@ SRTrack は AviUtl ExEdit2 上の字幕ソースを統合し、編集後のタ�
 
 ## 実装状態
 
-現行実装は、二つの Object、Monitor 廃止、1つ上のレイヤーの動画を参照する Preview、動画＋同名 SRT の組取込、SRT 単体取込、標準テキスト・セリフ準備・二種類の SRTrack Object を扱う Exporter を含む。Object／Preview、Importer、Exporter のすべてを初期版完成とし、SRTrack の実装初期版も完成とする。Preview と Exporter は、動画と SRTrack Object の開始位置差、1つ上のレイヤーの動画の途中切替・不在・再出現、Standalone の出力に対応する。Exporter は候補統合、短字幕結合、フレーム範囲選択、時間制御文字の出力を含む。
+現行実装は、二つの Object、Monitor 廃止、直上レイヤーの動画を参照する Preview、動画＋同名 SRT の組取込、SRT 単体取込、標準テキスト・セリフ準備・二種類の SRTrack Object を扱う Exporter を含む。Object／Preview、Importer、Exporter のすべてを初期版完成とし、SRTrack の実装初期版も完成とする。公開前に、PreviewとExporterの参照規則だけを「上側の直前動画Object」へ変更する。Importer、Objectプロパティ、グループ化は不変とする。
 
 SRTrack の初期版完成は、要求済みの機能を実装し、代表的な実機確認を終えたことを意味する。Object／Preview はSRT参照と編集用表示、Importerは動画ペア取込・SRT単体取込・通常入力への委譲・設定の再起動後反映、Exporterは字幕候補の統合・短字幕結合・出力範囲・時間制御文字・動画不在後の再出現を実装・概略確認済みとする。
 
