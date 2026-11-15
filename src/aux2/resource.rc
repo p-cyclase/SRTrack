@@ -26,7 +26,7 @@ BEGIN
     LTEXT "番号・名前の重複レイヤーは1回だけ出力します。", 1035, 17, 117, 220, 10
     GROUPBOX "対象オブジェクト", 1036, 8, 132, 250, 40
     AUTOCHECKBOX "テキスト", 1013, 17, 143, 75, 12
-    AUTOCHECKBOX "SRTrackObject（Standalone を含む）", 1017, 100, 143, 155, 12
+    AUTOCHECKBOX "SRTrack Object（Standalone を含む）", 1017, 100, 143, 155, 12
     AUTOCHECKBOX "セリフ準備（PSDToolkit）", 1014, 17, 157, 150, 12
     GROUPBOX "出力時刻", 1037, 8, 177, 250, 33
     LTEXT "オフセット（秒）", 1038, 17, 189, 90, 12
