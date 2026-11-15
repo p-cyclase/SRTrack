@@ -223,7 +223,12 @@ static void append_video_bound_srt(EDIT_SECTION* edit,OBJECT_HANDLE object,const
   if(!video){export_diagnostic(diagnostics,DiagnosticSeverity::info,L"EXP-VIDEO-END",L"直上に動画がないため字幕を終了しました。",L"該当区間は出力しません。",effect,&location);break;}
   auto video_location=edit->get_object_layer_frame(video);
   if(video_location.layer!=video_layer||video_location.end<probe){export_diagnostic(diagnostics,DiagnosticSeverity::warning,L"EXP-VIDEO-LOCATION",L"参照動画のタイムライン範囲を取得できません。",L"該当区間を除外しました。",effect,&location);break;}
-  if(video_location.start>probe){export_diagnostic(diagnostics,DiagnosticSeverity::info,L"EXP-VIDEO-END",L"直上の動画がない区間で字幕を終了しました。",L"次の動画が現れるまでの区間は出力しません。",effect,&location);break;}
+  if(video_location.start>probe){
+   if(video_location.start>location.end){export_diagnostic(diagnostics,DiagnosticSeverity::info,L"EXP-VIDEO-END",L"直上の動画がない区間で字幕を終了しました。",L"次の動画が現れるまでの区間は出力しません。",effect,&location);break;}
+   export_diagnostic(diagnostics,DiagnosticSeverity::info,L"EXP-VIDEO-GAP",L"直上の動画がない区間では字幕を出力しません。",L"後続の動画から字幕処理を再開します。",effect,&location);
+   probe=video_location.start;
+   continue;
+  }
   probe=video_location.end+1;
   if(!edit->count_object_effect(video,L"動画ファイル")){export_diagnostic(diagnostics,DiagnosticSeverity::info,L"EXP-VIDEO-END",L"直上の Object が動画ではないため字幕を終了しました。",L"該当区間は出力しません。",effect,&location);continue;}
   VideoPlayback playback;if(!read_video_playback(edit,video,playback)){export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-VIDEO-PLAYBACK",L"参照動画の再生設定を取得できません。",L"該当区間を除外しました。",effect,&location);continue;}
