@@ -89,41 +89,42 @@ local function clear_preview()
 end
 
 -- obj.getvalue(layer, ...) reads the Object present on that layer at the
--- current frame.  This is intentionally a Lua-side lookup: script modules
--- are not supplied an EDIT_SECTION while an Object is being rendered.
-local function direct_video_state()
+-- current frame.  Search upward so filters and other non-video Objects can
+-- stay between SRTrack Object and its nearest upper video Object.
+local function nearest_upper_video_state()
     if not obj.layer or obj.layer <= 1 then
-        return nil, "直上レイヤーに動画 Object がありません"
+        return nil, "上側に動画 Object がありません"
     end
-    local video_layer = obj.layer - 1
-    -- Lua exposes the left (start) handle of the built-in video's playback
-    -- range.  The right handle is represented by the video Object's timeline
-    -- length, which the paired SRTrack Object shares; it therefore needs no
-    -- separate value for Preview.
-    local range = obj.getvalue(video_layer, "動画ファイル", "再生位置")
-    local speed = obj.getvalue(video_layer, "動画ファイル", "再生速度")
-    local loop_value = obj.getvalue(video_layer, "動画ファイル", "ループ再生")
-    if range == nil or speed == nil or loop_value == nil then
-        return nil, "直上レイヤーに動画 Object がありません"
+    for video_layer = obj.layer - 1, 1, -1 do
+        -- Lua exposes the left (start) handle of the built-in video's playback
+        -- range.  The right handle is represented by the video Object's timeline
+        -- length, which the paired SRTrack Object shares; it therefore needs no
+        -- separate value for Preview.
+        local range = obj.getvalue(video_layer, "動画ファイル", "再生位置")
+        if range ~= nil then
+            local speed = obj.getvalue(video_layer, "動画ファイル", "再生速度")
+            local loop_value = obj.getvalue(video_layer, "動画ファイル", "ループ再生")
+            local position = tonumber(range)
+            speed = tonumber(speed)
+            if not position or not speed or speed == 0 or loop_value == nil then
+                return nil, "上側の動画の再生設定を取得できません"
+            end
+            local object_start = tonumber(obj.getvalue("frame_s"))
+            local video_start = tonumber(obj.getvalue("layer" .. video_layer .. ".frame_s"))
+            local frame_rate = tonumber(obj.framerate) or tonumber(obj.getpoint("framerate"))
+            if not object_start or not video_start or not frame_rate or frame_rate <= 0 then
+                return nil, "上側の動画との開始位置差を取得できません"
+            end
+            local loop = loop_value == true or loop_value == 1 or loop_value == "1" or loop_value == "true"
+            return {
+                position = position,
+                speed = speed,
+                loop = loop,
+                offset = (object_start - video_start) / frame_rate,
+            }
+        end
     end
-    local position = tonumber(range)
-    speed = tonumber(speed)
-    if not position or not speed or speed == 0 then
-        return nil, "直上動画の再生設定を取得できません"
-    end
-    local object_start = tonumber(obj.getvalue("frame_s"))
-    local video_start = tonumber(obj.getvalue("layer" .. video_layer .. ".frame_s"))
-    local frame_rate = tonumber(obj.framerate) or tonumber(obj.getpoint("framerate"))
-    if not object_start or not video_start or not frame_rate or frame_rate <= 0 then
-        return nil, "直上動画との開始位置差を取得できません"
-    end
-    local loop = loop_value == true or loop_value == 1 or loop_value == "1" or loop_value == "true"
-    return {
-        position = position,
-        speed = speed,
-        loop = loop,
-        offset = (object_start - video_start) / frame_rate,
-    }
+    return nil, "上側に動画 Object がありません"
 end
 
 if obj.getinfo("saving") or not preview then
@@ -131,7 +132,7 @@ if obj.getinfo("saving") or not preview then
 elseif not file or file == "" then
     draw_preview("[SRTrack] SRT ファイルが指定されていません", 0xff8080, 0x400000)
 else
-    local state, state_error = direct_video_state()
+    local state, state_error = nearest_upper_video_state()
     if not state then
         draw_preview("[SRTrack] " .. state_error, 0xff8080, 0x400000)
         return

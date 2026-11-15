@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <commdlg.h>
 #include <commctrl.h>
+#include <algorithm>
 #include <climits>
 #include <cmath>
 #include <cstdlib>
@@ -215,25 +216,59 @@ static void export_diagnostic(ExportDiagnostics& diagnostics,DiagnosticSeverity 
 static bool read_srt_source(EDIT_SECTION* edit,OBJECT_HANDLE object,const wchar_t* effect,const OBJECT_LAYER_FRAME& location,std::vector<SrtCaption>& parsed,ExportDiagnostics& diagnostics){
  std::string file_value;if(!get_object_item_string(edit,object,effect,L"SRT ファイル",file_value,false)){export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-SRT-PATH",L"SRT ファイルの設定を取得できません。",L"この Object を除外しました。",effect,&location);return false;}std::wstring file;if(!utf8_to_wide(file_value,file)||file.empty()){export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-SRT-PATH",L"SRT ファイルのパスが不正または未指定です。",L"この Object を除外しました。",effect,&location);return false;}std::string bytes;if(!read_file(file.c_str(),bytes)){export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-SRT-READ",L"指定された SRT ファイルを読み込めません。",L"この Object を除外しました。",effect,&location);return false;}size_t rejected=0;parsed=parse_srt(bytes,&rejected);if(rejected)export_diagnostic(diagnostics,DiagnosticSeverity::warning,L"EXP-SRT-PARSE",L"SRT 内に読み取れない字幕区間があります。",L"読み取れた字幕だけを出力します。",effect,&location);return true;
 }
+struct UpperVideoSegment { OBJECT_HANDLE object=nullptr; OBJECT_LAYER_FRAME location{}; };
+struct SelectedVideoSegment { OBJECT_HANDLE object=nullptr; OBJECT_LAYER_FRAME location{}; int start=0,end=0; };
+
+static std::vector<UpperVideoSegment> collect_upper_video_segments(EDIT_SECTION* edit,const OBJECT_LAYER_FRAME& location){
+ std::vector<UpperVideoSegment> videos;
+ for(int layer=location.layer-1;layer>=0;--layer){
+  int probe=location.start;
+  while(probe<=location.end){
+   OBJECT_HANDLE candidate=edit->find_object(layer,probe);
+   if(!candidate)break;
+   const auto candidate_location=edit->get_object_layer_frame(candidate);
+   if(candidate_location.layer!=layer||candidate_location.end<probe||candidate_location.end==INT_MAX)break;
+   if(candidate_location.start>location.end)break;
+   if(edit->count_object_effect(candidate,L"動画ファイル")>0)videos.push_back({candidate,candidate_location});
+   probe=candidate_location.end+1;
+  }
+ }
+ return videos;
+}
+
+static std::vector<SelectedVideoSegment> select_nearest_upper_videos(const std::vector<UpperVideoSegment>& videos,const OBJECT_LAYER_FRAME& location){
+ std::vector<int> boundaries{location.start,location.end+1};
+ for(const auto& video:videos){
+  boundaries.push_back(std::max(location.start,video.location.start));
+  boundaries.push_back(std::min(location.end+1,video.location.end+1));
+ }
+ std::sort(boundaries.begin(),boundaries.end());
+ boundaries.erase(std::unique(boundaries.begin(),boundaries.end()),boundaries.end());
+ std::vector<SelectedVideoSegment> selected;
+ for(size_t i=0;i+1<boundaries.size();++i){
+  const int start=boundaries[i],end=boundaries[i+1];
+  if(end<=start)continue;
+  const UpperVideoSegment* nearest=nullptr;
+  for(const auto& video:videos)if(video.location.start<=start&&video.location.end>=start&&(!nearest||video.location.layer>nearest->location.layer))nearest=&video;
+  if(!selected.empty()&&selected.back().object==(nearest?nearest->object:nullptr)&&selected.back().end==start){selected.back().end=end;continue;}
+  selected.push_back({nearest?nearest->object:nullptr,nearest?nearest->location:OBJECT_LAYER_FRAME{},start,end});
+ }
+ return selected;
+}
+
 static void append_video_bound_srt(EDIT_SECTION* edit,OBJECT_HANDLE object,const OBJECT_LAYER_FRAME& location,const wchar_t* effect,const std::vector<SrtCaption>& parsed,int64_t source_duration,int rate,int scale,std::vector<SourceTimedCaption>& sources,size_t& order,ExportDiagnostics& diagnostics){
- if(location.layer<=0){export_diagnostic(diagnostics,DiagnosticSeverity::info,L"EXP-VIDEO-END",L"直上に動画がないため字幕を終了しました。",L"該当区間は出力しません。",effect,&location);return;}
- const int video_layer=location.layer-1;int probe=location.start;
- while(probe<=location.end){
-  OBJECT_HANDLE video=edit->find_object(video_layer,probe);
-  if(!video){export_diagnostic(diagnostics,DiagnosticSeverity::info,L"EXP-VIDEO-END",L"直上に動画がないため字幕を終了しました。",L"該当区間は出力しません。",effect,&location);break;}
-  auto video_location=edit->get_object_layer_frame(video);
-  if(video_location.layer!=video_layer||video_location.end<probe){export_diagnostic(diagnostics,DiagnosticSeverity::warning,L"EXP-VIDEO-LOCATION",L"参照動画のタイムライン範囲を取得できません。",L"該当区間を除外しました。",effect,&location);break;}
-  if(video_location.start>probe){
-   if(video_location.start>location.end){export_diagnostic(diagnostics,DiagnosticSeverity::info,L"EXP-VIDEO-END",L"直上の動画がない区間で字幕を終了しました。",L"次の動画が現れるまでの区間は出力しません。",effect,&location);break;}
-   export_diagnostic(diagnostics,DiagnosticSeverity::info,L"EXP-VIDEO-GAP",L"直上の動画がない区間では字幕を出力しません。",L"後続の動画から字幕処理を再開します。",effect,&location);
-   probe=video_location.start;
+ if(location.layer<=0){export_diagnostic(diagnostics,DiagnosticSeverity::info,L"EXP-VIDEO-END",L"上側に参照可能な動画がないため字幕を終了しました。",L"該当区間は出力しません。",effect,&location);return;}
+ const auto videos=collect_upper_video_segments(edit,location);
+ const auto selected=select_nearest_upper_videos(videos,location);
+ for(const auto& segment:selected){
+  if(!segment.object){
+   const bool has_video_after=std::any_of(selected.begin(),selected.end(),[&segment](const SelectedVideoSegment& next){return next.start>=segment.end&&next.object!=nullptr;});
+   export_diagnostic(diagnostics,DiagnosticSeverity::info,has_video_after?L"EXP-VIDEO-GAP":L"EXP-VIDEO-END",L"上側に参照可能な動画がない区間では字幕を出力しません。",has_video_after?L"後続の動画から字幕処理を再開します。":L"該当区間は出力しません。",effect,&location);
    continue;
   }
-  probe=video_location.end+1;
-  if(!edit->count_object_effect(video,L"動画ファイル")){export_diagnostic(diagnostics,DiagnosticSeverity::info,L"EXP-VIDEO-END",L"直上の Object が動画ではないため字幕を終了しました。",L"該当区間は出力しません。",effect,&location);continue;}
-  VideoPlayback playback;if(!read_video_playback(edit,video,playback)){export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-VIDEO-PLAYBACK",L"参照動画の再生設定を取得できません。",L"該当区間を除外しました。",effect,&location);continue;}
-  const int segment_start=std::max(location.start,video_location.start),segment_end=std::min(location.end+1,video_location.end+1);if(segment_end<=segment_start)continue;
-  const int64_t scene_start=frame_milliseconds(segment_start,rate,scale),scene_end=frame_milliseconds(segment_end,rate,scale),video_start=frame_milliseconds(video_location.start,rate,scale);if(playback.loop&&source_duration<=0){export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-VIDEO-DURATION",L"ループ再生に必要な動画全長を取得できません。",L"該当区間を除外しました。",effect,&location);continue;}
+  VideoPlayback playback;if(!read_video_playback(edit,segment.object,playback)){export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-VIDEO-PLAYBACK",L"参照動画の再生設定を取得できません。",L"該当区間を除外しました。",effect,&location);continue;}
+  const int64_t scene_start=frame_milliseconds(segment.start,rate,scale),scene_end=frame_milliseconds(segment.end,rate,scale),video_start=frame_milliseconds(segment.location.start,rate,scale);
+  if(playback.loop&&source_duration<=0){export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-VIDEO-DURATION",L"ループ再生に必要な動画全長を取得できません。",L"該当区間を除外しました。",effect,&location);continue;}
   auto mapped=map_video_bound_srt_segment(parsed,scene_start,scene_end,video_start,int64_t(std::llround(playback.position*1000)),playback.speed/100,playback.loop,source_duration);
   for(auto& block:mapped)sources.push_back({block.start,block.end,std::move(block.text),location.layer,order++});
  }
