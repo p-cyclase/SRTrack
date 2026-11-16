@@ -51,11 +51,11 @@ readme.txt  （読むだけ。コピー不要）
 
 ### Importer
 
-動画と同名の SRT がある場合、動画と SRTrack Object をまとめて配置します。SRT ファイル単体のドロップにも対応します。
+動画と同名の SRT がある場合、動画と SRTrack Object をまとめて配置します。SRT ファイル単体のドロップにも対応します。他プラグインのドロップ処理と干渉する可能性があるため、各取込機能は `SRTrack 設定` から個別にオフにできます。
 
 ### Object
 
-動画追従用の `SRTrack Object`、固定 SRT 用の `SRTrack Object (fix)`、補足テキスト用の `SRTrack Object (txt)` を使い分けられます。いずれも編集画面での Preview に対応します。
+`SRTrack Object` は SRT ファイルを保持し、上位レイヤの動画 Object の再生時間を参照して字幕を出力する Object です。編集画面でプレビューでき、動画には出力されません。
 
 詳しい操作と設定は [ユーザーガイド](docs/user-guide.md) を参照してください。
 
