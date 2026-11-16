@@ -30,6 +30,6 @@ Monitor は旧構成の初期実装であり、採用しない。詳細は [07-m
 
 ## 1.4 開発・検証の共通環境
 
-`tests/manual/SRTrack-Regression.aup2` は、Preview と Exporter の代表的な挙動を一度に確認する手動回帰プロジェクトである。実装変更後は、標準設定で出力した SRT とテストマップを照合し、機能ごとの実際の結果を観察する。Importer のドロップ操作はこのプロジェクトに含めず、空シーンで別途確認する。
+`tests/manual/SRTrack-Regression.aup2` は、Preview と Exporter の代表的な正常系を一度に確認する手動回帰プロジェクトである。`tests/diagnostics/SRTrack-Diagnostics.aup2` は、出力を継続できるエラー・警告・情報診断を確認する別プロジェクトである。実装変更後は、標準設定で出力した SRT とテストマップを照合し、機能ごとの実際の結果を観察する。Importer のドロップ操作はこれらのプロジェクトに含めず、空シーンで別途確認する。
 
-テスト用の `.aup2` と SRT fixture は Git 管理する一方、動画 fixture と Exporter 等の生成物は Git 管理しない。常設診断の設計方針と、テストプロジェクトの詳細な扱いはそれぞれ [05-errors-and-validation.md](05-errors-and-validation.md) と [09-manual-regression-test.md](09-manual-regression-test.md) を正とする。
+テスト用の `.aup2` と SRT fixture は Git 管理する一方、動画 fixture と Exporter 等の生成物は Git 管理しない。常設診断の設計方針と、テストプロジェクトの詳細な扱いはそれぞれ [05-errors-and-validation.md](05-errors-and-validation.md)、[09-manual-regression-test.md](09-manual-regression-test.md)、[10-diagnostic-regression-test.md](10-diagnostic-regression-test.md) を正とする。

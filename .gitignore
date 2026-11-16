@@ -29,6 +29,9 @@ out/
 # Versioned manual-test project and subtitle fixtures
 !tests/manual/**/*.aup2
 !tests/manual/**/*.srt
+!tests/diagnostics/**/*.aup2
+!tests/diagnostics/**/*.srt
 
 # Exported result of the manual regression project (not a fixture)
 tests/manual/SRTrack-Regression.srt
+tests/diagnostics/SRTrack-Diagnostics.srt

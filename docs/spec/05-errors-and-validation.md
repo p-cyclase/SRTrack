@@ -64,6 +64,8 @@ SRTrack は、公開されている AviUtl2 の公式ドキュメントと Plugi
 
 手動回帰プロジェクトは、各実装変更の後に開いて Preview と Exporter の基礎挙動をまとめて観察する共通の実験場である。固定の正解 SRT による機械比較は行わず、出力 SRT とテストマップを照合して、今回の実装で何が起きたかを確認する。素材・プロジェクト・字幕 fixture の版管理と、ローカル動画および生成物の扱いは 09 の管理方針に従う。
 
+正常系の `SRTrack-Regression.aup2` と、診断専用の `SRTrack-Diagnostics.aup2` は分離する。前者では警告・エラーがないことを基準とし、後者では意図的な欠損・部分破損・不正設定に対して、出力継続、結果モーダル、共通診断ログが仕様どおりになることを確認する。詳細は [10-diagnostic-regression-test.md](10-diagnostic-regression-test.md) を正とする。
+
 ### SRT 解析
 
 1. UTF-8 BOM の有無、CRLF／LF、末尾空行、複数行本文。

@@ -21,6 +21,7 @@ SRTrack は AviUtl ExEdit2 上の字幕ソースを統合し、編集後のタ�
 | [07-monitor.md](07-monitor.md) | Monitor 廃止方針 |
 | [08-settings.md](08-settings.md) | SRTrack 全体に適用する利用者設定 |
 | [09-manual-regression-test.md](09-manual-regression-test.md) | Preview／Exporter 用の手動回帰テストプロジェクト計画 |
+| [10-diagnostic-regression-test.md](10-diagnostic-regression-test.md) | Exporter 診断用の手動回帰テストプロジェクト計画 |
 
 ## 実装状態
 
