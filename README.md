@@ -1,53 +1,81 @@
 # SRTrack
 
-SRTrack は AviUtl2 で編集後の動画に対応する SRT 字幕を出力するツールキットです。
+SRTrack は、AviUtl2 で編集した動画に対応する SRT 字幕を出力するためのツールキットです。動画と同時に用意した SRT をタイムラインへ対応づけ、動画の連結・切抜き・分割・速度変更後にも、元の文字列とタイミングに近い SRT を再出力します。
 
-## コア・コンセプト
+字幕を動画へ焼き込む機能ではありません。編集中の確認用に字幕 Preview を表示できますが、動画書き出しには描画しません。
 
-動画ファイルだけから元の字幕を正確に復元することはできません。SRTrack は、動画と同時に用意した SRT をタイムラインへ対応づけ、レンダリング済み動画の連結・切抜き・分割・速度変更後にも、元の文字列とタイミングに近い SRT を再出力することを目指します。
+## できること
 
-SRT を動画へ焼き込むことは目的ではありません。編集用字幕プレビューは補助機能であり、動画書き出しには反映されません。Exporter は動画を書き出さない通常の SRT エクスポーターで、保存済み `.aup2` の `output.file` を読める場合だけ同名 `.srt` を保存先候補として提案します。
+- 標準テキスト、PSDToolkit のセリフ準備、SRTrack Object を一つの SRT へ出力する。
+- 動画に追従する `SRTrack Object`、動画に依存しない `SRTrack Object (fix)`、補足字幕用の `SRTrack Object (txt)` を使い分ける。
+- 短い字幕の結合、フレーム範囲選択、同時開始時の本文順、AviUtl2 テキスト制御文字の変換に対応する。
+- 動画と同名の SRT を検出して、動画と SRTrack Object をまとめて取り込む。
+- 問題が起きたとき、Exporter の結果画面または `SRTrack 設定` の診断ログから、報告に必要な情報をコピーできる。
 
-## Object モデル
+## 確認済みの動作環境
 
-SRTrack は、動画追従型を主用途とし、補助用途を含む三つの Object に分けます。
+- Windows x64
+- AviUtl2 / ExEdit2 2.1.13
+- GCMZDrops2
+- L-SMASH Works
 
-| Object | 役割 |
-| --- | --- |
-| SRTrack Object | 自身よりLayer 1側で最も近い標準動画 Object（上側の直前動画Object）を必要時に参照し、その再生位置・速度・ループに従って SRT を変換する。SRT パスと動画全長 `D` を保持する。 |
-| SRTrack Object (fix) | 動画を参照せず、自身の再生開始位置・速度とタイムライン範囲で SRT を変換する。 |
-| SRTrack Object (txt) | 自由入力テキストを Object の範囲で Preview 表示し、SRT の補足字幕として出力する。動画書き出しには描画しない。 |
+SRTrack は上記の環境で確認しています。GCMZDrops2 と L-SMASH Works は SRTrack に同梱しません。各プラグインは配布元の案内に従って導入してください。
 
-動画とのグループ化は、両者の上下関係を編集操作で保ちやすくする補助です。字幕処理の条件はグループ ID ではなく、SRTrack ObjectよりLayer 1側で最も近い動画です。フィルタなどの非動画Objectは間に置けます。常駐 Monitor による値コピー・ファイル名追従は廃止します。
+## インストール
 
-> この参照規則は公開前の設計変更として Preview／Exporter に実装し、非動画 Object を間へ置いた実機確認まで完了しています。
+1. [Releases](../../releases) から利用したい版の `SRTrack-vX.Y.Z.zip` を取得します。
+2. AviUtl2 を終了します。
+3. ZIP を AviUtl2 のデータフォルダへ展開し、既存ファイルがある場合は置き換えます。
+4. AviUtl2 を起動します。
 
-## 構成
+ZIP は次の構成です。フォルダ構造を保ったまま展開してください。
 
-| 要素 | 役割 | 状態 |
-| --- | --- | --- |
-| Exporter | タイムライン上の字幕ソースを集め、SRT を出力する | 初期版完成。標準テキスト、セリフ準備、三種の SRTrack Object、フレーム範囲選択出力を扱う。細部は今後のバグフィクス・互換性確認で扱う |
-| Importer | 動画ドロップ時に同名 SRT を検出し、動画と SRTrack Object を配置・グループ化する | 初期版完成。細部は今後のバグフィクス・互換性確認で扱う |
-| Object / Preview | SRT の参照、編集用字幕プレビュー | 初期版完成。細部は今後のバグフィクス・互換性確認で扱う |
+```text
+Plugin/
+  SRTrack/
+    SRTrack.aux2
+    SRTrack.lua
+Script/
+  SRTrack/
+    SRTrack.mod2
+    SRTrackObject.obj2
+    SRTrackObject(fix).obj2
+    SRTrackObject(txt).obj2
+readme.txt
+```
 
-再編後の配布物は `SRTrack.aux2`、`SRTrack.lua`、`SRTrackObject.obj2`、`SRTrackObject(fix).obj2`、`SRTrackObject(txt).obj2`、`SRTrack.mod2` の6ファイルです。三つの Object は同じ Preview モジュールを共有します。
+更新時も同じ手順です。以前の版へ戻したい場合は、GitHub Releases に保管されているその版の ZIP を展開してください。
 
-## 初期版について
+## 使いかたの入口
 
-三種の Object、Preview、Importer、Exporter、共通診断、正常系・診断系の手動回帰プロジェクトを含む SRTrack 初期版は完成しています。以後は、未実装機能の穴埋めではなく、互換性・境界条件・利用者フィードバックに基づく改善として育てていきます。Object 種別変換など、未実装の将来機能は正規仕様で「将来」と明記して区別します。
+### 動画と SRT を対応づける
 
-## ドキュメント
+動画と同名の `.srt` を同じフォルダに置いて動画をドロップすると、Importer が動画と `SRTrack Object` を配置します。Importer の有効／無効と、SRT 単体ドロップ時の Object 種別は `SRTrack 設定` で変更できます。取込設定は AviUtl2 を再起動した後のファイルドロップから反映されます。
 
-現行・次期の正規仕様は [全体仕様書](docs/spec/README.md) を参照してください。[初期検討メモ](docs/srtrack-design.md) と `docs/components/` の一部は履歴資料であり、正規仕様ではありません。
+### 手動で配置する
 
-## 開発・検証
+- `SRTrack Object`：上側にある最も近い動画 Object を参照して SRT を時間変換します。
+- `SRTrack Object (fix)`：動画を参照せず、Object 自身の再生位置・速度で SRT を時間変換します。
+- `SRTrack Object (txt)`：自由入力したテキストを、Object の範囲だけ SRT に出力します。
 
-`tests/manual/SRTrack-Regression.aup2` は Preview／Exporter の共通手動回帰プロジェクトです。SRT fixture とプロジェクトは Git 管理し、動画 fixture と出力結果はローカルで扱います。実施方法と確認項目は [手動回帰テスト仕様](docs/spec/09-manual-regression-test.md) を参照してください。常設診断は、通常の作業を妨げず、必要時に不具合報告へ使える情報を確認できるよう初期実装済みです。方針と現在の対象範囲は [エラー・検証仕様](docs/spec/05-errors-and-validation.md) にあります。
+### SRT を出力する
 
-## 前提プラグイン
+Exporter を開き、出力対象と字幕の整形条件を指定して `エクスポート…` を選びます。保存先は Windows の保存ダイアログで選択します。
 
-Importer を使う場合は GCMZDrops2 と L-SMASH Works が必要です。いずれも SRTrack には同梱しません。SRTrack は GCMZDrops2 の公開 API のみを利用し、AviUtl2 標準 Object 以外の外部ファイルやプラグインのリバースエンジニアリングは行いません。
+## 困ったとき・不具合報告
+
+Exporter で警告またはエラーが表示された場合は、結果画面の `共通ログをコピー` を使ってください。Importer や Preview を含む診断は `SRTrack 設定` の `診断ログ` タブからコピーできます。
+
+GitHub Issue では、表示されたメッセージ、再現手順、期待した結果、実際の結果、コピーした診断情報を添えてください。診断ログには絶対パス、SRT 本文、動画名を記録しない設計ですが、投稿前に内容を確認し、公開したくない情報は伏せてください。詳しくは [不具合報告と貢献](CONTRIBUTING.md) を参照してください。
+
+## 開発・仕様
+
+- 現在の仕様：[`docs/spec/`](docs/spec/README.md)
+- 開発・ビルド・手動回帰テスト：[`docs/developer-guide.md`](docs/developer-guide.md)
+- 変更履歴：[`CHANGELOG.md`](CHANGELOG.md)
+
+初期版は完成しています。今後は、互換性・境界条件・利用者フィードバックに基づく改善として育てていきます。
 
 ## ライセンス
 
-SRTrack のライセンスは MIT License です。AviUtl2 Plugin SDK の同梱ヘッダーは SDK 付属の MIT License に従います。外部前提プラグインは各権利者の条件に従います。
+SRTrack は [MIT License](LICENSE) で提供します。AviUtl2 Plugin SDK の同梱ヘッダーは SDK 付属の MIT License に従います。第三者の権利表記は [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を参照してください。

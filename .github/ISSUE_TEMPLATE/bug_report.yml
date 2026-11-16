@@ -1,0 +1,58 @@
+name: 不具合報告
+description: SRTrack の再現可能な問題を報告する
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        可能なら診断ログを添えてください。投稿前に、公開したくない情報が含まれていないか確認してください。
+  - type: input
+    id: srtrack-version
+    attributes:
+      label: SRTrack の版
+      placeholder: 例: v0.1.0
+    validations:
+      required: true
+  - type: input
+    id: aviutl-version
+    attributes:
+      label: AviUtl2 / ExEdit2 の版
+      placeholder: 例: 2.1.13
+    validations:
+      required: true
+  - type: input
+    id: prerequisite-versions
+    attributes:
+      label: GCMZDrops2・L-SMASH Works の版
+      placeholder: 未導入の場合も記入してください
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現手順
+      placeholder: 1. ...\n2. ...\n3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待した結果
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 実際の結果
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: 診断情報
+      description: Exporter の「共通ログをコピー」または SRTrack 設定の診断ログから貼り付けてください。
+      render: text
+  - type: textarea
+    id: additional
+    attributes:
+      label: 補足
+      description: スクリーンショットや、権利・個人情報を含まない最小プロジェクトがあれば添えてください。
