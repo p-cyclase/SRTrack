@@ -65,7 +65,7 @@ END
 
 102 DIALOGEX 0, 0, 292, 232
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "SRTrack Importer 設定"
+CAPTION "SRTrack 設定"
 FONT 9, "Yu Gothic UI"
 BEGIN
     AUTOCHECKBOX "動画ファイルドロップ時、同名の SRT ファイルがあれば読み込む", 2001, 10, 10, 270, 12

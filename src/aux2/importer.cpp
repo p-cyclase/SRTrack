@@ -236,8 +236,8 @@ INT_PTR CALLBACK importer_settings_dialog(HWND dialog, UINT message,
         next.srt_drop = IsDlgButtonChecked(dialog, 2002) == BST_CHECKED;
         next.fix = IsDlgButtonChecked(dialog, 2004) == BST_CHECKED;
         if (!save_importer_settings(next)) {
-          MessageBoxW(dialog, L"Importer 設定を保存できませんでした。",
-                      L"SRTrack Importer 設定", MB_ICONERROR);
+          MessageBoxW(dialog, L"設定を保存できませんでした。",
+                      L"SRTrack 設定", MB_ICONERROR);
           return TRUE;
         }
         EndDialog(dialog, IDOK);
@@ -319,6 +319,6 @@ void register_importer(HOST_APP_TABLE* host) {
                                      on_srt_file_drop);
   }
   if (host->register_config_menu) {
-    host->register_config_menu(L"SRTrack Importer 設定…", open_importer_settings);
+    host->register_config_menu(L"SRTrack 設定…", open_importer_settings);
   }
 }
