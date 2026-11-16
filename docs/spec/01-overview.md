@@ -10,7 +10,7 @@
 | SRTrack Object (fix) | 自身の再生設定で SRT を時間変換する補助的な Object | `Standalone` からの改名を実装予定。Object／Preview・Exporter の既存機能を引き継ぐ |
 | SRTrack Object (txt) | 自由入力テキストを Object 範囲の字幕として扱う補助的な Object | 新規実装予定。Preview と Exporter の対象、動画書き出しには非表示 |
 | Preview モジュール | 編集画面専用の字幕・診断表示 | Object／Preview 初期版完成 |
-| SRTrack 設定 | Importer の有効状態と単体 SRT ドロップの扱い、共通診断ログを利用者単位で管理 | 初期版実装済み。再起動後に適用 |
+| SRTrack 設定 | Importer の有効状態、Preview の全体表示、共通診断ログを利用者単位で管理 | Importer・診断ログは初期版実装済み。Preview 全体設定と2タブUIは実装予定 |
 
 Monitor は旧構成の初期実装であり、採用しない。詳細は [07-monitor.md](07-monitor.md) を参照する。
 
@@ -22,7 +22,7 @@ Monitor は旧構成の初期実装であり、採用しない。詳細は [07-m
 
 同名 SRT がない場合、または動画と別名の SRT を使う場合は、SRTrack Object の SRT ファイルを手動指定できる。動画と無関係の SRT は SRTrack Object (fix) として配置する。
 
-`SRTrack 設定…` では、動画ペア取込と SRT 単体取込をそれぞれオン・オフでき、共通診断ログを確認できる。SRT 単体取込は `SRTrack Object` または `SRTrack Object (fix)` を選べる。`txt` 型はテキスト専用のためドロップ対象にしない。設定は AviUtl2 の再起動後に反映される。
+`SRTrack 設定…` では、動画ペア取込と SRT 単体取込をそれぞれオン・オフでき、Preview の全体表示を切り替え、共通診断ログを確認できる。SRT 単体取込は `SRTrack Object` または `SRTrack Object (fix)` を選べる。`txt` 型はテキスト専用のためドロップ対象にしない。取込設定は AviUtl2 の再起動後に反映され、Preview 表示はその場で切り替える。
 
 ## 1.3 対象外
 
