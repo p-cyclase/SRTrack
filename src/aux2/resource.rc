@@ -5,7 +5,7 @@ CAPTION "SRTrack Exporter"
 FONT 9, "Yu Gothic UI"
 BEGIN
     CONTROL "", 1030, "SysTabControl32", WS_VISIBLE | WS_TABSTOP, 8, 5, 274, 264
-    DEFPUSHBUTTON "エクスポート…", 1020, 105, 275, 80, 14
+    DEFPUSHBUTTON "エクスポート…", 1020, 202, 275, 80, 14
 END
 
 103 DIALOGEX 0, 0, 266, 215
