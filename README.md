@@ -43,21 +43,21 @@ readme.txt  （読むだけ。コピー不要）
 
 更新時も同じ手順です。以前の版へ戻したい場合は、GitHub Releases に保管されているその版の ZIP を解凍し、`Pluginフォルダ` と `Scriptフォルダ` をコピーしてください。
 
-## 使いかたの入口
+## 主な機能
 
-### 動画と SRT を対応づける
+### Exporter
 
-動画と同名の `.srt` を同じフォルダに置いて動画をドロップすると、Importer が動画と `SRTrack Object` を配置します。Importer の有効／無効と、SRT 単体ドロップ時の Object 種別は `SRTrack 設定` で変更できます。取込設定は AviUtl2 を再起動した後のファイルドロップから反映されます。
+タイムライン上のテキスト、セリフ準備、SRTrack Object を集め、編集結果に対応する SRT を出力します。出力時間、対象レイヤー、字幕の整形を指定できます。
 
-### 手動で配置する
+### Importer
 
-- `SRTrack Object`：上側にある最も近い動画 Object を参照して SRT を時間変換します。
-- `SRTrack Object (fix)`：動画を参照せず、Object 自身の再生位置・速度で SRT を時間変換します。
-- `SRTrack Object (txt)`：自由入力したテキストを、Object の範囲だけ SRT に出力します。
+動画と同名の SRT がある場合、動画と SRTrack Object をまとめて配置します。SRT ファイル単体のドロップにも対応します。
 
-### SRT を出力する
+### Object
 
-Exporter を開き、出力対象と字幕の整形条件を指定して `エクスポート…` を選びます。保存先は Windows の保存ダイアログで選択します。
+動画追従用の `SRTrack Object`、固定 SRT 用の `SRTrack Object (fix)`、補足テキスト用の `SRTrack Object (txt)` を使い分けられます。いずれも編集画面での Preview に対応します。
+
+詳しい操作と設定は [ユーザーガイド](docs/user-guide.md) を参照してください。
 
 ## 困ったとき・不具合報告
 
@@ -68,6 +68,7 @@ GitHub Issue では、表示されたメッセージ、再現手順、期待し�
 ## 開発・仕様
 
 - 現在の仕様：[`docs/spec/`](docs/spec/README.md)
+- 利用者向けの操作説明：[`docs/user-guide.md`](docs/user-guide.md)
 - 開発・ビルド・手動回帰テスト：[`docs/developer-guide.md`](docs/developer-guide.md)
 - 変更履歴：[`CHANGELOG.md`](CHANGELOG.md)
 
