@@ -1,6 +1,6 @@
 # 2. SRTrack Object と入力データ
 
-> **公開前の Object 再編**：`SRTrack Object (Standalone)` は `SRTrack Object (fix)` へ改名し、自由入力テキスト用の `SRTrack Object (txt)` を追加する。現行開発版の実装名は改名前であり、以下の三分類は改名・新規実装後の公開仕様である。
+> **初期版の Object 構成**：`SRTrack Object`、`SRTrack Object (fix)`、`SRTrack Object (txt)` の三種を提供する。`fix` 型と `txt` 型は初期版で実装済みである。
 
 ## 2.1 三つの Object
 
@@ -8,9 +8,9 @@ SRTrack は、動画追従、独立した SRT、個別テキストを別の Obje
 
 | Object | 時間変換の基準 | 主な用途 | 状態 |
 | --- | --- | --- | --- |
-| SRTrack Object | 同じ時刻に自身よりLayer 1側で最も近い標準 `動画ファイル` Object（上側の直前動画Object） | レンダリング済み動画と対応する SRT | `SRTrackObject.obj2`、初期実装・簡易確認済み |
-| SRTrack Object (fix) | Object 自身の再生開始位置と速度 | 動画と独立した SRT の配置 | `SRTrackObject(fix).obj2`、改名実装予定 |
-| SRTrack Object (txt) | Object 自身のタイムライン範囲 | SRT にだけ出力する補足・個別字幕 | `SRTrackObject(txt).obj2`、新規実装予定 |
+| SRTrack Object | 同じ時刻に自身よりLayer 1側で最も近い標準 `動画ファイル` Object | レンダリング済み動画と対応する SRT | `SRTrackObject.obj2`、初期版完成 |
+| SRTrack Object (fix) | Object 自身の再生開始位置と速度 | 動画と独立した SRT の配置 | `SRTrackObject(fix).obj2`、初期版完成 |
+| SRTrack Object (txt) | Object 自身のタイムライン範囲 | SRT にだけ出力する補足・個別字幕 | `SRTrackObject(txt).obj2`、初期版完成 |
 
 `SRTrack Object` と `SRTrack Object (fix)` は SRT ファイルを読み、`SRTrack Object (txt)` は自由入力テキストを読む。三者とも Exporter の字幕ソースになり、編集用字幕プレビューを任意に表示する。プレビューは確認専用であり、動画書き出し中は描画しない。標準テキスト等との統合・結合・オフセット後の最終 SRT と Preview 表示の一致は要件にしないが、各 Object が単独で変換する字幕時刻は Exporter と Preview で一致させる。
 
@@ -46,7 +46,7 @@ Preview は描画時に、公開Lua APIでSRTrack ObjectよりLayer 1側を探�
 
 [AviUtl2 Lua リファレンス](https://docs.aviutl2.jp/lua/)の `obj.getvalue(layer, effect, item)` は、指定レイヤー（1から）の現在時刻にあるObjectの設定値を取得し、対象がない場合は `nil` を返す。Preview は `obj.layer - 1` からLayer 1側へ順に、標準 `動画ファイル` の `再生位置` を取得できる最初のレイヤーを参照先とする。同じレイヤーから再生速度・ループを取得し、`obj.getvalue("layerN.frame_s")` で動画開始フレームを得る。
 
-この経路は直上レイヤー取得の一般化であり、Objectの描画ごとに上側レイヤーだけを確認する。プロジェクト全体の走査やMonitorを必要としない。フィルタ等の非動画Objectを間へ置いた Preview／Exporter の実機一致は確認済みである。
+この経路は、上側にある最も近い動画 Object を探索するものであり、Objectの描画ごとに上側レイヤーだけを確認する。プロジェクト全体の走査やMonitorを必要としない。フィルタ等の非動画Objectを間へ置いた Preview／Exporter の実機一致は確認済みである。
 
 Lua API で標準動画の再生範囲として直接取得できるのは開始位置 `P` である。Preview の終端は、同じタイムライン範囲へ配置される SRTrack Object 自身の終端で表す。したがって Preview の時間変換には `P`、再生速度、ループ、`D` を使用する。
 
