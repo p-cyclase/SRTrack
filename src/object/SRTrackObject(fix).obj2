@@ -1,5 +1,5 @@
 --label:SRTrack
---information:SRTrack Object (fix) 0.1 by p_cyclase
+--information:SRTrack Object (fix) 0.1.0 by p_cyclase
 --file@file:SRT ファイル
 --track@position:再生位置,0,86400,0,0.001
 --track@speed:再生速度,0.01,1000,100,0.01

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../version.h"
+
 #include <windows.h>
 
 #include <algorithm>
@@ -100,7 +102,9 @@ inline std::wstring format_diagnostic_entry(const DiagnosticEntry& entry) {
 
 inline std::wstring format_diagnostic_report(const std::vector<DiagnosticEntry>& entries) {
   std::wstring report = L"SRTrack 診断情報\n";
-  report += L"SRTrack 版: 開発版\n";
+  report += L"SRTrack 版: ";
+  report += kSRTrackVersion;
+  report += L"\n";
   report += L"AviUtl2 版: 取得不可\n";
   report += L"記録件数: " + std::to_wstring(entries.size()) + L"\n";
   report += L"※ 絶対パス、SRT本文、動画名は記録していません。\n\n";
