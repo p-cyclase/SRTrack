@@ -22,10 +22,14 @@ s = P + v × (T - A)
 
 Preview はこの式を使う。Lua APIからSRTrack Objectと上側の直前動画Objectの開始フレーム、およびフレームレートを取得し、`T - A` を `((SRTrack Object の開始フレーム - 動画の開始フレーム) / フレームレート) + obj.time` として計算する。Exporterも同じ探索規則・式、動画の再生位置・速度・ループ、および有効区間を使う。したがって、同じ動画の途中からSRTrack Objectを置いた場合も、開始位置差を反映し、各 Object 単独の字幕時刻はPreviewとExporterで一致する。
 
-## 3.3 SRTrack Object (Standalone)
+## 3.3 SRTrack Object (fix)
 
-SRTrack Object (Standalone) の開始時刻を `A`、保持する再生開始位置を `P`、速度倍率を `v` とすると、`s = P + v × (T - A)` である。SRT の最終字幕以降は空表示とし、Object 自身のタイムライン範囲外には出力しない。ループと `D` は使わない。Exporter はこの式を使い、Standalone を `SRTrack Object` と同じ対象設定で字幕ソースとして扱う。
+SRTrack Object (fix) の開始時刻を `A`、保持する再生開始位置を `P`、速度倍率を `v` とすると、`s = P + v × (T - A)` である。SRT の最終字幕以降は空表示とし、Object 自身のタイムライン範囲外には出力しない。ループと `D` は使わない。Exporter はこの式を使い、`fix` 型を `SRTrack Object` と同じ対象設定で字幕ソースとして扱う。
 
-## 3.4 グループ化
+## 3.4 SRTrack Object (txt)
+
+SRTrack Object (txt) は時間変換を行わない。Object の開始時刻を `A`、終了時刻を `B` とすると、空でない入力テキストの候補区間は `[A, B)` である。Preview はこの区間だけ入力テキストを表示し、Exporter は同じ区間を一つの字幕候補として統合処理へ渡す。
+
+## 3.5 グループ化
 
 グループ化は時間変換の入力ではない。Importer が同じ時刻の隣接する2レイヤーに、上側（Layer 1 側）へ動画、下側へ SRTrack Object を同じ開始・長さで配置し、グループ化することで、通常の移動・分割・伸縮操作が両者へ行われやすくする。フィルタなどを両者の間へ追加しても、参照時は上側の直前動画Objectを読む。グループ ID の列挙や常駐同期は要求しない。

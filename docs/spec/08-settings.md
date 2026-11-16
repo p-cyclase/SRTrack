@@ -13,10 +13,10 @@ SRTrack Importer は外部の入力プラグインと同じファイルドロッ
 
 [✓] SRT ファイルドロップ時、次の Object として読み込む
     ○ SRTrack Object
-    ○ SRTrack Object (Standalone)
+    ○ SRTrack Object (fix)
 ```
 
-既定値は、動画の同名 SRT 自動取込を有効、SRT 単体取込を有効、Object 種別を `SRTrack Object` とする。`SRTrack Object (Standalone)` は選択肢として提供するが、初期の既定にはしない。
+既定値は、動画の同名 SRT 自動取込を有効、SRT 単体取込を有効、Object 種別を `SRTrack Object` とする。`SRTrack Object (fix)` は選択肢として提供するが、初期の既定にはしない。`SRTrack Object (txt)` は SRT を入力にしないため、この設定の選択肢に含めない。
 
 SRT 単体取込のチェックが無効な場合、Object 種別の選択肢は無効表示とする。
 

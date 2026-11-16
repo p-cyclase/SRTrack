@@ -10,26 +10,27 @@ SRT を動画へ焼き込むことは目的ではありません。編集用字�
 
 ## Object モデル
 
-SRTrack は、旧単一 Object の役割を二つの Object に分けています。
+SRTrack は、動画追従型を主用途とし、補助用途を含む三つの Object に分けます。`fix` 型への改名と `txt` 型の追加は公開前の実装予定です。
 
 | Object | 役割 |
 | --- | --- |
 | SRTrack Object | 自身よりLayer 1側で最も近い標準動画 Object（上側の直前動画Object）を必要時に参照し、その再生位置・速度・ループに従って SRT を変換する。SRT パスと動画全長 `D` を保持する。 |
-| SRTrack Object (Standalone) | 動画を参照せず、自身の再生開始位置・速度とタイムライン範囲で SRT を変換する。 |
+| SRTrack Object (fix) | 動画を参照せず、自身の再生開始位置・速度とタイムライン範囲で SRT を変換する。 |
+| SRTrack Object (txt) | 自由入力テキストを Object の範囲で Preview 表示し、SRT の補足字幕として出力する。動画書き出しには描画しない。 |
 
 動画とのグループ化は、両者の上下関係を編集操作で保ちやすくする補助です。字幕処理の条件はグループ ID ではなく、SRTrack ObjectよりLayer 1側で最も近い動画です。フィルタなどの非動画Objectは間に置けます。常駐 Monitor による値コピー・ファイル名追従は廃止します。
 
-> この参照規則は公開前の設計変更であり、現行開発版への実装はこれから行います。
+> この参照規則は公開前の設計変更として Preview／Exporter に実装し、非動画 Object を間へ置いた実機確認まで完了しています。
 
 ## 構成
 
 | 要素 | 役割 | 状態 |
 | --- | --- | --- |
-| Exporter | タイムライン上の字幕ソースを集め、SRT を出力する | 初期版完成。標準テキスト、セリフ準備、二種類の SRTrack Object、フレーム範囲選択出力を扱う。細部は今後のバグフィクス・互換性確認で扱う |
+| Exporter | タイムライン上の字幕ソースを集め、SRT を出力する | 初期版完成。標準テキスト、セリフ準備、動画追従型と `fix` 型の SRTrack Object、フレーム範囲選択出力を扱う。`txt` 型は実装予定。細部は今後のバグフィクス・互換性確認で扱う |
 | Importer | 動画ドロップ時に同名 SRT を検出し、動画と SRTrack Object を配置・グループ化する | 初期版完成。細部は今後のバグフィクス・互換性確認で扱う |
 | Object / Preview | SRT の参照、編集用字幕プレビュー | 初期版完成。細部は今後のバグフィクス・互換性確認で扱う |
 
-配布物は `SRTrack.aux2`、`SRTrack.lua`、`SRTrackObject.obj2`、`SRTrackObject(Standalone).obj2`、`SRTrack.mod2` の5ファイルです。二つの Object は同じ Preview モジュールを共有します。
+再編後の配布物は `SRTrack.aux2`、`SRTrack.lua`、`SRTrackObject.obj2`、`SRTrackObject(fix).obj2`、`SRTrackObject(txt).obj2`、`SRTrack.mod2` の6ファイルです。三つの Object は同じ Preview モジュールを共有します。
 
 ## ドキュメント
 
