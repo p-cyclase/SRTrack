@@ -11,6 +11,12 @@ local function draw(text, color)
     obj.draw()
 end
 local function clear() obj.load("text", ""); obj.draw() end
+local function global_preview_enabled()
+    local ok,module=pcall(function() return obj.module("SRTrack") end)
+    if not ok or not module or not module.preview_enabled then return true end
+    local read_ok,enabled=pcall(module.preview_enabled)
+    return not read_ok or enabled~=false
+end
 local function timestamp(value)
     local h, m, s, ms = value:match("^%s*(%d+):(%d+):(%d+)[,.](%d+)%s*$")
     local fraction = value:match("[,.](%d+)%s*$")
@@ -39,7 +45,7 @@ local function captions(bytes)
     end
     return out
 end
-if obj.getinfo("saving") or not preview then clear()
+if obj.getinfo("saving") or not preview or not global_preview_enabled() then clear()
 elseif not file or file=="" then draw("[SRTrack] SRT ファイルが指定されていません",0xff8080)
 elseif not speed or speed<=0 then draw("[SRTrack] SRT 再生速度は正の値にしてください",0xff8080)
 else

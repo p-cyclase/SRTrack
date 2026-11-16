@@ -64,6 +64,15 @@ local function read_srt_bytes(path)
     return bytes, nil
 end
 
+local function global_preview_enabled()
+    local ok, module = pcall(function() return obj.module("SRTrack") end)
+    if not ok or not module or not module.preview_enabled then
+        return true
+    end
+    local read_ok, enabled = pcall(module.preview_enabled)
+    return not read_ok or enabled ~= false
+end
+
 local function preview_text(captions, source_time)
     local active = {}
     for _, caption in ipairs(captions or {}) do
@@ -127,7 +136,7 @@ local function nearest_upper_video_state()
     return nil, "上側に動画 Object がありません"
 end
 
-if obj.getinfo("saving") or not preview then
+if obj.getinfo("saving") or not preview or not global_preview_enabled() then
     clear_preview()
 elseif not file or file == "" then
     draw_preview("[SRTrack] SRT ファイルが指定されていません", 0xff8080, 0x400000)

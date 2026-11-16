@@ -8,7 +8,16 @@ local function clear()
     obj.draw()
 end
 
-if obj.getinfo("saving") or not preview or not text or text == "" then
+local function global_preview_enabled()
+    local ok, module = pcall(function() return obj.module("SRTrack") end)
+    if not ok or not module or not module.preview_enabled then
+        return true
+    end
+    local read_ok, enabled = pcall(module.preview_enabled)
+    return not read_ok or enabled ~= false
+end
+
+if obj.getinfo("saving") or not preview or not global_preview_enabled() or not text or text == "" then
     clear()
 else
     obj.setfont("MS UI Gothic", 48, 3, 0xffffff, 0x400000, true)

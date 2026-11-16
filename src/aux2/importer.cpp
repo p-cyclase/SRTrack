@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <commctrl.h>
 
 #include <algorithm>
 #include <cstdio>
@@ -23,9 +24,13 @@ struct ImporterSettings {
   bool video_pair = true;
   bool srt_drop = true;
   bool fix = false;
+  bool preview_enabled = true;
 };
 
 ImporterSettings importer_settings;
+constexpr int settings_tab_id = 2010;
+HWND settings_page = nullptr;
+HWND diagnostics_page = nullptr;
 
 bool read_dword(HKEY key, const wchar_t* name, bool fallback) {
   DWORD type = 0, value = 0, size = sizeof(value);
@@ -51,6 +56,7 @@ void load_importer_settings() {
   // pre-release rename, then persist subsequent changes under the new key.
   loaded.fix = read_dword(key, L"importer_srt_fix",
                           read_dword(key, L"importer_srt_standalone", loaded.fix));
+  loaded.preview_enabled = read_dword(key, L"preview_enabled", loaded.preview_enabled);
   RegCloseKey(key);
   importer_settings = loaded;
 }
@@ -69,7 +75,8 @@ bool save_importer_settings(const ImporterSettings& settings) {
   };
   const bool ok = put(L"importer_video_pair", settings.video_pair) &&
                   put(L"importer_srt_drop", settings.srt_drop) &&
-                  put(L"importer_srt_fix", settings.fix);
+                  put(L"importer_srt_fix", settings.fix) &&
+                  put(L"preview_enabled", settings.preview_enabled);
   RegCloseKey(key);
   return ok;
 }
@@ -175,7 +182,8 @@ void on_srt_file_drop(EDIT_SECTION* edit, LPCWSTR file) {
 }
 
 void refresh_diagnostic_log(HWND dialog) {
-  HWND list = GetDlgItem(dialog, 2005);
+  HWND list = diagnostics_page ? GetDlgItem(diagnostics_page, 2005)
+                               : GetDlgItem(dialog, 2005);
   if (!list) return;
   SendMessageW(list, LB_RESETCONTENT, 0, 0);
   const auto entries = snapshot_diagnostics();
@@ -196,23 +204,76 @@ void refresh_diagnostic_log(HWND dialog) {
   }
 }
 
+HWND settings_control(HWND dialog, int id) {
+  HWND control = GetDlgItem(dialog, id);
+  if (control) return control;
+  if (settings_page && (control = GetDlgItem(settings_page, id))) return control;
+  if (diagnostics_page && (control = GetDlgItem(diagnostics_page, id))) return control;
+  return nullptr;
+}
+
 void enable_srt_object_choices(HWND dialog) {
-  const BOOL enabled = IsDlgButtonChecked(dialog, 2002) == BST_CHECKED;
-  EnableWindow(GetDlgItem(dialog, 2003), enabled);
-  EnableWindow(GetDlgItem(dialog, 2004), enabled);
+  const HWND srt_drop = settings_control(dialog, 2002);
+  const BOOL enabled = srt_drop && SendMessageW(srt_drop, BM_GETCHECK, 0, 0) == BST_CHECKED;
+  EnableWindow(settings_control(dialog, 2003), enabled);
+  EnableWindow(settings_control(dialog, 2004), enabled);
+}
+
+void show_settings_tab(HWND dialog, int tab) {
+  ShowWindow(settings_page, tab == 0 ? SW_SHOW : SW_HIDE);
+  ShowWindow(diagnostics_page, tab == 1 ? SW_SHOW : SW_HIDE);
+}
+
+INT_PTR CALLBACK settings_page_dialog(HWND page, UINT message, WPARAM wparam, LPARAM lparam) {
+  if (message == WM_COMMAND) return SendMessageW(GetParent(page), message, wparam, lparam);
+  return FALSE;
 }
 
 INT_PTR CALLBACK importer_settings_dialog(HWND dialog, UINT message,
-                                           WPARAM wparam, LPARAM) {
+                                           WPARAM wparam, LPARAM lparam) {
   switch (message) {
-    case WM_INITDIALOG:
-      CheckDlgButton(dialog, 2001, importer_settings.video_pair ? BST_CHECKED : BST_UNCHECKED);
-      CheckDlgButton(dialog, 2002, importer_settings.srt_drop ? BST_CHECKED : BST_UNCHECKED);
-      CheckRadioButton(dialog, 2003, 2004,
-                       importer_settings.fix ? 2004 : 2003);
+    case WM_INITDIALOG: {
+      HWND tabs = GetDlgItem(dialog, settings_tab_id);
+      TCITEMW item{};
+      item.mask = TCIF_TEXT;
+      item.pszText = const_cast<LPWSTR>(L"設定");
+      SendMessageW(tabs, TCM_INSERTITEMW, 0, reinterpret_cast<LPARAM>(&item));
+      item.pszText = const_cast<LPWSTR>(L"診断ログ");
+      SendMessageW(tabs, TCM_INSERTITEMW, 1, reinterpret_cast<LPARAM>(&item));
+      settings_page = CreateDialogParamW(module_instance, MAKEINTRESOURCEW(106), dialog,
+                                          settings_page_dialog, 0);
+      diagnostics_page = CreateDialogParamW(module_instance, MAKEINTRESOURCEW(107), dialog,
+                                             settings_page_dialog, 0);
+      RECT area{};
+      GetClientRect(tabs, &area);
+      TabCtrl_AdjustRect(tabs, FALSE, &area);
+      MapWindowPoints(tabs, dialog, reinterpret_cast<POINT*>(&area), 2);
+      const int width = area.right - area.left;
+      const int height = area.bottom - area.top;
+      SetWindowPos(settings_page, HWND_TOP, area.left, area.top, width, height, SWP_NOACTIVATE);
+      SetWindowPos(diagnostics_page, HWND_TOP, area.left, area.top, width, height, SWP_NOACTIVATE);
+      TabCtrl_SetCurSel(tabs, 0);
+      show_settings_tab(dialog, 0);
+      SendMessageW(settings_control(dialog, 2001), BM_SETCHECK,
+                   importer_settings.video_pair ? BST_CHECKED : BST_UNCHECKED, 0);
+      SendMessageW(settings_control(dialog, 2002), BM_SETCHECK,
+                   importer_settings.srt_drop ? BST_CHECKED : BST_UNCHECKED, 0);
+      SendMessageW(settings_control(dialog, 2008), BM_SETCHECK,
+                   importer_settings.preview_enabled ? BST_CHECKED : BST_UNCHECKED, 0);
+      CheckRadioButton(settings_page, 2003, 2004, importer_settings.fix ? 2004 : 2003);
       enable_srt_object_choices(dialog);
       refresh_diagnostic_log(dialog);
       return TRUE;
+    }
+    case WM_NOTIFY: {
+      const auto* notification = reinterpret_cast<const NMHDR*>(lparam);
+      if (notification && notification->idFrom == settings_tab_id &&
+          notification->code == TCN_SELCHANGE) {
+        show_settings_tab(dialog, TabCtrl_GetCurSel(GetDlgItem(dialog, settings_tab_id)));
+        return TRUE;
+      }
+      break;
+    }
     case WM_COMMAND:
       if (LOWORD(wparam) == 2002) {
         enable_srt_object_choices(dialog);
@@ -232,9 +293,10 @@ INT_PTR CALLBACK importer_settings_dialog(HWND dialog, UINT message,
       }
       if (LOWORD(wparam) == IDOK) {
         ImporterSettings next;
-        next.video_pair = IsDlgButtonChecked(dialog, 2001) == BST_CHECKED;
-        next.srt_drop = IsDlgButtonChecked(dialog, 2002) == BST_CHECKED;
-        next.fix = IsDlgButtonChecked(dialog, 2004) == BST_CHECKED;
+        next.video_pair = SendMessageW(settings_control(dialog, 2001), BM_GETCHECK, 0, 0) == BST_CHECKED;
+        next.srt_drop = SendMessageW(settings_control(dialog, 2002), BM_GETCHECK, 0, 0) == BST_CHECKED;
+        next.fix = SendMessageW(settings_control(dialog, 2004), BM_GETCHECK, 0, 0) == BST_CHECKED;
+        next.preview_enabled = SendMessageW(settings_control(dialog, 2008), BM_GETCHECK, 0, 0) == BST_CHECKED;
         if (!save_importer_settings(next)) {
           MessageBoxW(dialog, L"設定を保存できませんでした。",
                       L"SRTrack 設定", MB_ICONERROR);

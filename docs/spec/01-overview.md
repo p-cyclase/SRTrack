@@ -10,7 +10,7 @@
 | SRTrack Object (fix) | 自身の再生設定で SRT を時間変換する補助的な Object | `Standalone` からの改名を実装予定。Object／Preview・Exporter の既存機能を引き継ぐ |
 | SRTrack Object (txt) | 自由入力テキストを Object 範囲の字幕として扱う補助的な Object | 新規実装予定。Preview と Exporter の対象、動画書き出しには非表示 |
 | Preview モジュール | 編集画面専用の字幕・診断表示 | Object／Preview 初期版完成 |
-| SRTrack 設定 | Importer の有効状態、Preview の全体表示、共通診断ログを利用者単位で管理 | Importer・診断ログは初期版実装済み。Preview 全体設定と2タブUIは実装予定 |
+| SRTrack 設定 | Importer の有効状態、Preview の全体表示、共通診断ログを利用者単位で管理 | 2タブUI、Preview 全体設定、Importer・診断ログを実装。取込設定は再起動後に適用 |
 
 Monitor は旧構成の初期実装であり、採用しない。詳細は [07-monitor.md](07-monitor.md) を参照する。
 
