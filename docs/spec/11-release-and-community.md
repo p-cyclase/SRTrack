@@ -45,10 +45,11 @@ readme.txt
 
 1. `build.cmd` を実行し、単体テストを通す。
 2. 正常系・診断系の手動回帰テストと、Importer の空シーン確認を行う。
-3. `CHANGELOG.md` に版の変更内容を記録する。
-4. `tools/package-release.ps1 -Version X.Y.Z` を実行して ZIP を生成する。
-5. ZIP の内容が本仕様の構成だけであることを確認する。
-6. Git タグと GitHub Release を作成し、生成した ZIP と変更内容を公開する。
+3. `CHANGELOG.md` に版の変更内容を記録し、公開日を確定する。
+4. README の現在のバージョンと最終更新日を確定した公開内容へ更新する。
+5. `tools/package-release.ps1 -Version X.Y.Z` を実行して ZIP を生成する。
+6. ZIP の内容が本仕様の構成だけであることを確認する。
+7. Git タグと GitHub Release を作成し、生成した ZIP と変更内容を公開する。
 
 生成先 `dist/` は Git 管理しない。公開済みの ZIP は GitHub Releases を正本とする。
 
