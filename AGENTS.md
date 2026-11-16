@@ -23,7 +23,7 @@
 ## 文書と用語
 
 - `docs/spec/` を正規仕様とする。`docs/components/` と `docs/srtrack-design.md` は、明記された範囲で履歴資料として扱う。
-- 現行の公開 Object 名は `SRTrack Object` と `SRTrack Object (Standalone)`、配布ファイル名は `SRTrackObject.obj2` と `SRTrackObject(Standalone).obj2` である。旧呼称を新規の実装・正規仕様へ持ち込まない。
+- 現行の公開 Object 名は `SRTrack Object`、`SRTrack Object (fix)`、`SRTrack Object (txt)`、配布ファイル名は `SRTrackObject.obj2`、`SRTrackObject(fix).obj2`、`SRTrackObject(txt).obj2` である。旧呼称を新規の実装・正規仕様へ持ち込まない。
 - Monitor は廃止済みであり、新規実装の前提にしない。
 
 ## 外部製作物と先行事例
