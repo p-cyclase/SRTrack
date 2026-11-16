@@ -26,7 +26,7 @@ BEGIN
     LTEXT "番号・名前の重複レイヤーは1回だけ出力します。", 1035, 17, 117, 220, 10
     GROUPBOX "対象オブジェクト", 1036, 8, 132, 250, 40
     AUTOCHECKBOX "テキスト", 1013, 17, 143, 75, 12
-    AUTOCHECKBOX "SRTrack Object（Standalone を含む）", 1017, 100, 143, 155, 12
+    AUTOCHECKBOX "SRTrack Object（fix / txt を含む）", 1017, 100, 143, 155, 12
     AUTOCHECKBOX "セリフ準備（PSDToolkit）", 1014, 17, 157, 150, 12
     GROUPBOX "出力時刻", 1037, 8, 177, 250, 33
     LTEXT "オフセット（秒）", 1038, 17, 189, 90, 12
@@ -72,7 +72,7 @@ BEGIN
     GROUPBOX "SRT ファイル単体のドロップ", -1, 8, 30, 276, 49
     AUTOCHECKBOX "次の Object として読み込む", 2002, 17, 43, 150, 12
     AUTORADIOBUTTON "SRTrack Object", 2003, 31, 57, 110, 12, WS_GROUP
-    AUTORADIOBUTTON "SRTrack Object (Standalone)", 2004, 148, 57, 130, 12
+    AUTORADIOBUTTON "SRTrack Object (fix)", 2004, 148, 57, 130, 12
     LTEXT "取込設定の変更は、AviUtl2 を再起動した後のファイルドロップから反映されます。", -1, 10, 91, 272, 20
     GROUPBOX "診断ログ（この起動中のみ）", -1, 8, 113, 276, 82
     LISTBOX 2005, 17, 126, 258, 43, LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP

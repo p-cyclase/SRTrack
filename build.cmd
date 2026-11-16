@@ -15,9 +15,12 @@ cl /nologo /EHsc /utf-8 /std:c++17 /LD /Fo"%OBJ_DIR%\\" src\aux2\exporter.cpp sr
 cl /nologo /EHsc /utf-8 /std:c++17 /LD /Fo"%OBJ_DIR%\\" src\mod2\module.cpp /link /OUT:"%SCRIPT_DIR%\SRTrack.mod2" /IMPLIB:"%OBJ_DIR%\SRTrackModule.lib" || exit /b 1
 copy /y src\lua\SRTrack.lua "%PLUGIN_DIR%\SRTrack.lua" >nul || exit /b 1
 if exist "%SCRIPT_DIR%\SRTrack.obj2" del /q "%SCRIPT_DIR%\SRTrack.obj2" || exit /b 1
-if exist "%SCRIPT_DIR%\SRTrackStandalone.obj2" del /q "%SCRIPT_DIR%\SRTrackStandalone.obj2" || exit /b 1
+if exist "%SCRIPT_DIR%\SRTrackObject(Standalone).obj2" del /q "%SCRIPT_DIR%\SRTrackObject(Standalone).obj2" || exit /b 1
+if exist "%SCRIPT_DIR%\SRTrackObject(fix).obj2" del /q "%SCRIPT_DIR%\SRTrackObject(fix).obj2" || exit /b 1
+if exist "%SCRIPT_DIR%\SRTrackObject(txt).obj2" del /q "%SCRIPT_DIR%\SRTrackObject(txt).obj2" || exit /b 1
 copy /y src\object\SRTrackObject.obj2 "%SCRIPT_DIR%\SRTrackObject.obj2" >nul || exit /b 1
-copy /y src\object\SRTrackObject(Standalone).obj2 "%SCRIPT_DIR%\SRTrackObject(Standalone).obj2" >nul || exit /b 1
+copy /y src\object\SRTrackObject(fix).obj2 "%SCRIPT_DIR%\SRTrackObject(fix).obj2" >nul || exit /b 1
+copy /y src\object\SRTrackObject(txt).obj2 "%SCRIPT_DIR%\SRTrackObject(txt).obj2" >nul || exit /b 1
 
 cl /nologo /EHsc /utf-8 /std:c++17 /Fo"%OBJ_DIR%\\" tests\test_core.cpp /Fe:"%OUT%\test_core.exe" || exit /b 1
 "%OUT%\test_core.exe" || exit /b 1

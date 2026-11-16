@@ -22,7 +22,7 @@ constexpr wchar_t registry_key[] = L"Software\\SRTrack";
 struct ImporterSettings {
   bool video_pair = true;
   bool srt_drop = true;
-  bool standalone = false;
+  bool fix = false;
 };
 
 ImporterSettings importer_settings;
@@ -47,7 +47,10 @@ void load_importer_settings() {
   }
   loaded.video_pair = read_dword(key, L"importer_video_pair", loaded.video_pair);
   loaded.srt_drop = read_dword(key, L"importer_srt_drop", loaded.srt_drop);
-  loaded.standalone = read_dword(key, L"importer_srt_standalone", loaded.standalone);
+  // Preserve the existing user's independent-SRT selection during the
+  // pre-release rename, then persist subsequent changes under the new key.
+  loaded.fix = read_dword(key, L"importer_srt_fix",
+                          read_dword(key, L"importer_srt_standalone", loaded.fix));
   RegCloseKey(key);
   importer_settings = loaded;
 }
@@ -66,7 +69,7 @@ bool save_importer_settings(const ImporterSettings& settings) {
   };
   const bool ok = put(L"importer_video_pair", settings.video_pair) &&
                   put(L"importer_srt_drop", settings.srt_drop) &&
-                  put(L"importer_srt_standalone", settings.standalone);
+                  put(L"importer_srt_fix", settings.fix);
   RegCloseKey(key);
   return ok;
 }
@@ -146,8 +149,8 @@ void on_srt_file_drop(EDIT_SECTION* edit, LPCWSTR file) {
                    L"SRT ファイルを読み込めないため、最小の長さで Object を作成します。",
                    L"Object を作成して設定を続行しました。");
   }
-  const wchar_t* effect = importer_settings.standalone
-      ? L"SRTrackObject(Standalone)" : L"SRTrackObject";
+  const wchar_t* effect = importer_settings.fix
+      ? L"SRTrackObject(fix)" : L"SRTrackObject";
   OBJECT_HANDLE object = edit->create_object(effect, edit->info->layer,
                                               edit->info->frame, length);
   if (!object) {
@@ -161,7 +164,7 @@ void on_srt_file_drop(EDIT_SECTION* edit, LPCWSTR file) {
   // group structure to reproduce.  It is the same Object a user can insert
   // from AviUtl2's Object menu, with only its initial values supplied here.
   edit->set_object_item_value(object, effect, L"SRT ファイル", path.c_str());
-  if (!importer_settings.standalone) {
+  if (!importer_settings.fix) {
     edit->set_object_item_value(object, effect, L"動画全長", "0.000");
   }
   edit->set_object_item_value(object, effect, L"字幕プレビュー", "1");
@@ -206,7 +209,7 @@ INT_PTR CALLBACK importer_settings_dialog(HWND dialog, UINT message,
       CheckDlgButton(dialog, 2001, importer_settings.video_pair ? BST_CHECKED : BST_UNCHECKED);
       CheckDlgButton(dialog, 2002, importer_settings.srt_drop ? BST_CHECKED : BST_UNCHECKED);
       CheckRadioButton(dialog, 2003, 2004,
-                       importer_settings.standalone ? 2004 : 2003);
+                       importer_settings.fix ? 2004 : 2003);
       enable_srt_object_choices(dialog);
       refresh_diagnostic_log(dialog);
       return TRUE;
@@ -231,7 +234,7 @@ INT_PTR CALLBACK importer_settings_dialog(HWND dialog, UINT message,
         ImporterSettings next;
         next.video_pair = IsDlgButtonChecked(dialog, 2001) == BST_CHECKED;
         next.srt_drop = IsDlgButtonChecked(dialog, 2002) == BST_CHECKED;
-        next.standalone = IsDlgButtonChecked(dialog, 2004) == BST_CHECKED;
+        next.fix = IsDlgButtonChecked(dialog, 2004) == BST_CHECKED;
         if (!save_importer_settings(next)) {
           MessageBoxW(dialog, L"Importer 設定を保存できませんでした。",
                       L"SRTrack Importer 設定", MB_ICONERROR);

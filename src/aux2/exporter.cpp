@@ -171,10 +171,11 @@ static bool suggested_srt_path(EDIT_SECTION* edit,std::wstring& output){
  if(!edit||!edit->info||!export_edit_handle||!edit->get_project_file)return false;PROJECT_FILE* project=edit->get_project_file(export_edit_handle);if(!project||!project->get_project_file_path)return false;LPCWSTR raw_path=project->get_project_file_path();if(!raw_path||!*raw_path)return false;std::wstring project_path=raw_path;std::string bytes;if(!read_file(project_path.c_str(),bytes,64*1024*1024))return false;std::string saved_output;if(!find_scene_output_file(bytes,edit->info->scene_id,saved_output)||!utf8_to_wide(saved_output,output)||output.empty())return false;
  size_t slash=output.find_last_of(L"\\/");size_t dot=output.find_last_of(L'.');if(dot==std::wstring::npos||(slash!=std::wstring::npos&&dot<slash))output+=L".srt";else output.replace(dot,std::wstring::npos,L".srt");return true;
 }
-enum class SrtrackObjectKind { none, video_bound, standalone };
+enum class SrtrackObjectKind { none, video_bound, fix, text };
 struct SrtrackEffect { SrtrackObjectKind kind=SrtrackObjectKind::none; const wchar_t* name=nullptr; };
 static SrtrackEffect find_srtrack_effect(EDIT_SECTION* edit,OBJECT_HANDLE object){
- if(edit->count_object_effect(object,L"SRTrackObject(Standalone)")>0)return {SrtrackObjectKind::standalone,L"SRTrackObject(Standalone)"};
+ if(edit->count_object_effect(object,L"SRTrackObject(fix)")>0)return {SrtrackObjectKind::fix,L"SRTrackObject(fix)"};
+ if(edit->count_object_effect(object,L"SRTrackObject(txt)")>0)return {SrtrackObjectKind::text,L"SRTrackObject(txt)"};
  if(edit->count_object_effect(object,L"SRTrackObject")>0)return {SrtrackObjectKind::video_bound,L"SRTrackObject"};
  return {};
 }
@@ -201,7 +202,8 @@ struct ExportDiagnostics { int warnings=0; int errors=0; };
 static const wchar_t* diagnostic_object_name(const wchar_t* object_kind){
  if(!object_kind)return L"";
  if(wcscmp(object_kind,L"SRTrackObject")==0)return L"SRTrack Object";
- if(wcscmp(object_kind,L"SRTrackObject(Standalone)")==0)return L"SRTrack Object (Standalone)";
+ if(wcscmp(object_kind,L"SRTrackObject(fix)")==0)return L"SRTrack Object (fix)";
+ if(wcscmp(object_kind,L"SRTrackObject(txt)")==0)return L"SRTrack Object (txt)";
  return object_kind;
 }
 static void export_diagnostic(ExportDiagnostics& diagnostics,DiagnosticSeverity severity,
@@ -273,9 +275,15 @@ static void append_video_bound_srt(EDIT_SECTION* edit,OBJECT_HANDLE object,const
   for(auto& block:mapped)sources.push_back({block.start,block.end,std::move(block.text),location.layer,order++});
  }
 }
-static void append_standalone_srt(EDIT_SECTION* edit,OBJECT_HANDLE object,const OBJECT_LAYER_FRAME& location,const wchar_t* effect,const std::vector<SrtCaption>& parsed,int rate,int scale,std::vector<SourceTimedCaption>& sources,size_t& order,ExportDiagnostics& diagnostics){
- std::string position_value,speed_value;double position=0,speed=0;if(!get_object_item_string(edit,object,effect,L"再生位置",position_value)||!get_object_item_string(edit,object,effect,L"再生速度",speed_value)||!parse_number(position_value,position)||!parse_number(speed_value,speed)||position<0||speed<=0){export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-STANDALONE-PLAYBACK",L"Standalone Object の再生設定を取得できません。",L"この Object を除外しました。",effect,&location);return;}
+static void append_fixed_srt(EDIT_SECTION* edit,OBJECT_HANDLE object,const OBJECT_LAYER_FRAME& location,const wchar_t* effect,const std::vector<SrtCaption>& parsed,int rate,int scale,std::vector<SourceTimedCaption>& sources,size_t& order,ExportDiagnostics& diagnostics){
+ std::string position_value,speed_value;double position=0,speed=0;if(!get_object_item_string(edit,object,effect,L"再生位置",position_value)||!get_object_item_string(edit,object,effect,L"再生速度",speed_value)||!parse_number(position_value,position)||!parse_number(speed_value,speed)||position<0||speed<=0){export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-FIX-PLAYBACK",L"fix Object の再生設定を取得できません。",L"この Object を除外しました。",effect,&location);return;}
  const int64_t scene_start=frame_milliseconds(location.start,rate,scale),scene_end=frame_milliseconds(location.end+1,rate,scale);auto mapped=map_srt_to_scene(parsed,scene_start,scene_end,int64_t(std::llround(position*1000)),speed/100);for(auto& block:mapped)sources.push_back({block.start,block.end,std::move(block.text),location.layer,order++});
+}
+static bool append_txt_source(EDIT_SECTION* edit,OBJECT_HANDLE object,const OBJECT_LAYER_FRAME& location,const wchar_t* effect,std::vector<SourceTimedCaption>& sources,size_t& order){
+ std::string text;if(!get_object_item_string(edit,object,effect,L"テキスト",text))return false;
+ if(empty_text(text))return true;
+ sources.push_back({frame_milliseconds(location.start,edit->info->rate,edit->info->scale),frame_milliseconds(location.end+1,edit->info->rate,edit->info->scale),std::move(text),location.layer,order++});
+ return true;
 }
 static void append_text_source(EDIT_SECTION* edit,OBJECT_HANDLE object,const OBJECT_LAYER_FRAME& location,const wchar_t* effect,int layer,std::vector<SourceTimedCaption>& sources,size_t& order){
  std::string raw_text;if(!get_object_item_string(edit,object,effect,L"テキスト",raw_text))return;
@@ -304,7 +312,10 @@ static void export_subtitles(EDIT_SECTION* edit){
   const wchar_t* effect=nullptr;bool isdialogue=edit->count_object_effect(obj,L"セリフ準備@PSDToolKit")>0;const SrtrackEffect srtrack_effect=find_srtrack_effect(edit,obj);bool issrtrack=srtrack_effect.kind!=SrtrackObjectKind::none;
   if(isdialogue){if(settings.dialogue)effect=L"セリフ準備@PSDToolKit";}else if(settings.text&&edit->count_object_effect(obj,L"テキスト")>0)effect=L"テキスト";
   if(effect){const size_t before=sources.size();append_text_source(edit,obj,loc,effect,layer,sources,source_order);if(sources.size()>before)++caption_count;else{std::string raw_text;if(!get_object_item_string(edit,obj,effect,L"テキスト",raw_text))export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-TEXT-READ",L"テキスト内容を取得できません。",L"この Object を除外しました。",effect,&loc);}}
-  if(issrtrack&&settings.srtrack){std::vector<SrtCaption> parsed;if(read_srt_source(edit,obj,srtrack_effect.name,loc,parsed,diagnostics)){if(srtrack_effect.kind==SrtrackObjectKind::standalone)append_standalone_srt(edit,obj,loc,srtrack_effect.name,parsed,edit->info->rate,edit->info->scale,sources,source_order,diagnostics);else{std::string duration_value;double duration=0;if(get_object_item_string(edit,obj,srtrack_effect.name,L"動画全長",duration_value)&&parse_number(duration_value,duration)&&duration>=0)append_video_bound_srt(edit,obj,loc,srtrack_effect.name,parsed,int64_t(std::llround(duration*1000)),edit->info->rate,edit->info->scale,sources,source_order,diagnostics);else export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-VIDEO-DURATION",L"動画全長を取得できません。",L"この Object を除外しました。",srtrack_effect.name,&loc);}++srt_count;}}
+  if(issrtrack&&settings.srtrack){
+   if(srtrack_effect.kind==SrtrackObjectKind::text){const size_t before=sources.size();if(!append_txt_source(edit,obj,loc,srtrack_effect.name,sources,source_order))export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-TXT-READ",L"txt Object のテキストを取得できません。",L"この Object を除外しました。",srtrack_effect.name,&loc);else if(sources.size()>before)++caption_count;}
+   else {std::vector<SrtCaption> parsed;if(read_srt_source(edit,obj,srtrack_effect.name,loc,parsed,diagnostics)){if(srtrack_effect.kind==SrtrackObjectKind::fix)append_fixed_srt(edit,obj,loc,srtrack_effect.name,parsed,edit->info->rate,edit->info->scale,sources,source_order,diagnostics);else{std::string duration_value;double duration=0;if(get_object_item_string(edit,obj,srtrack_effect.name,L"動画全長",duration_value)&&parse_number(duration_value,duration)&&duration>=0)append_video_bound_srt(edit,obj,loc,srtrack_effect.name,parsed,int64_t(std::llround(duration*1000)),edit->info->rate,edit->info->scale,sources,source_order,diagnostics);else export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-VIDEO-DURATION",L"動画全長を取得できません。",L"この Object を除外しました。",srtrack_effect.name,&loc);}++srt_count;}}
+  }
   pos=loc.end+1;}}
  if(sources.empty()){add_diagnostic(DiagnosticSeverity::warning,L"Exporter",L"EXP-CAPTION-EMPTY",L"字幕を取得できませんでした。",L"出力を中止しました。");MessageBoxW(owner,L"字幕を取得できませんでした。対象レイヤーとオブジェクトを確認してください。",L"SRTrack Exporter",MB_ICONWARNING);return;}
  int64_t offset=0,minimum=1000;parse_offset(settings.offset,offset);parse_offset(settings.minimum_duration,minimum);

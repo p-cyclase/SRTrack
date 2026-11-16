@@ -1,0 +1,17 @@
+--label:SRTrack
+--information:SRTrack Object (txt) 0.1 by p_cyclase
+--text@text:テキスト
+--check@preview:字幕プレビュー,true
+
+local function clear()
+    obj.load("text", "")
+    obj.draw()
+end
+
+if obj.getinfo("saving") or not preview or not text or text == "" then
+    clear()
+else
+    obj.setfont("MS UI Gothic", 48, 3, 0xffffff, 0x400000, true)
+    obj.load("text", text, 0, 0, 4)
+    obj.draw()
+end
