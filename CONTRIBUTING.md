@@ -1,4 +1,4 @@
-# SRTrack への貢献と不具合報告
+# SRTrack の開発と不具合報告
 
 SRTrack への提案、不具合報告、改善への協力を歓迎します。現行の正規仕様は [`docs/spec/`](docs/spec/README.md) です。
 
