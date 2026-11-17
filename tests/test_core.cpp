@@ -119,4 +119,19 @@ int main() {
   assert(clear_to_empty.size() == 1 && clear_to_empty[0].end == 200);
   auto ignored_newline = build_timing_controlled_text("<r10>AB<c>\r\nCD", 0, 10000, 0, true, true);
   assert(ignored_newline.size() == 2 && ignored_newline[1].start == 200 && ignored_newline[1].text == "CD");
+  // AviUtl2 counts ruby readings for timing, but the SRT representation may
+  // retain or omit that reading independently.
+  auto ruby_timed = build_timing_controlled_text("<r10>A</>漢<!>かん</>B<w*0.2>C", 0, 10000, 0, true, true);
+  assert(ruby_timed.size() == 2 && ruby_timed[0].end == 1500 && ruby_timed[0].text == "A漢（かん）B");
+  assert(ruby_timed[1].start == 1500 && ruby_timed[1].text == "A漢（かん）BC");
+  auto ruby_removed = build_timing_controlled_text("<r10>A</>漢<!>かん</>B<w*0.2>C", 0, 10000, 0, false, true);
+  assert(ruby_removed.size() == 2 && ruby_removed[0].end == 1500 && ruby_removed[0].text == "A漢B");
+  assert(ruby_removed[1].start == 1500 && ruby_removed[1].text == "A漢BC");
+  // Registered and unregistered named emoji both occupy one display character.
+  auto emoji_timed = build_timing_controlled_text("<r10>A<&ハート><w*0.2>C", 0, 10000, 0, true, true);
+  assert(emoji_timed.size() == 2 && emoji_timed[0].end == 600 && emoji_timed[0].text == "A（ハート）");
+  assert(emoji_timed[1].start == 600 && emoji_timed[1].text == "A（ハート）C");
+  auto emoji_removed = build_timing_controlled_text("<r10>A<&無効な文字列><w*0.2>C", 0, 10000, 0, true, false);
+  assert(emoji_removed.size() == 2 && emoji_removed[0].end == 600 && emoji_removed[0].text == "A");
+  assert(emoji_removed[1].start == 600 && emoji_removed[1].text == "AC");
 }

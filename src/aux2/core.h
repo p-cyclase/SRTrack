@@ -347,6 +347,88 @@ inline size_t utf8_character_size(const std::string& value, size_t index) {
     return 1;
 }
 
+struct TimingInputToken {
+    bool is_control = false;
+    TextTimingControl control{};
+    std::string output;
+    int visible_units = 0;
+    bool line_break = false;
+};
+
+inline void append_timing_input_tokens(const std::string& input, bool keep_ruby,
+                                       bool keep_emoji, bool emit_output,
+                                       std::vector<TimingInputToken>& tokens) {
+    auto literal = [&](const std::string& text) {
+        tokens.push_back({false, {}, emit_output ? text : std::string{}, 0, false});
+    };
+    for (size_t index = 0; index < input.size();) {
+        if (input.compare(index, 3, "<//") == 0) {
+            const size_t end = input.find("//>", index + 3);
+            if (end != std::string::npos) { index = end + 3; continue; }
+        }
+        if (input.compare(index, 2, "<?") == 0) {
+            const size_t end = input.find("?>", index + 2);
+            if (end != std::string::npos) { index = end + 2; continue; }
+        }
+        if (input.compare(index, 3, "</>") == 0) {
+            const size_t ruby_marker = input.find("<!", index + 3);
+            if (ruby_marker != std::string::npos) {
+                const size_t ruby_header_end = input.find('>', ruby_marker + 2);
+                if (ruby_header_end != std::string::npos) {
+                    const size_t ruby_end = input.find("</>", ruby_header_end + 1);
+                    if (ruby_end != std::string::npos) {
+                        append_timing_input_tokens(input.substr(index + 3, ruby_marker - (index + 3)),
+                                                   keep_ruby, keep_emoji, emit_output, tokens);
+                        if (keep_ruby) literal("（");
+                        // AviUtl2 counts the reading, even when SRTrack is configured
+                        // not to preserve it in the SRT body.
+                        append_timing_input_tokens(input.substr(ruby_header_end + 1,
+                                                               ruby_end - (ruby_header_end + 1)),
+                                                   keep_ruby, keep_emoji,
+                                                   emit_output && keep_ruby, tokens);
+                        if (keep_ruby) literal("）");
+                        index = ruby_end + 3;
+                        continue;
+                    }
+                }
+            }
+            index += 3;
+            continue;
+        }
+        if (input[index] == '<') {
+            const size_t end = input.find('>', index + 1);
+            if (end != std::string::npos) {
+                const std::string token = input.substr(index + 1, end - index - 1);
+                TextTimingControl control{};
+                if (parse_text_timing_control(token, control)) {
+                    tokens.push_back({true, control, {}, 0, false});
+                    index = end + 1;
+                    continue;
+                }
+                if (!token.empty() && token[0] == '&') {
+                    // A named emoji occupies one display character even when
+                    // AviUtl2 has no matching image registered for its name.
+                    tokens.push_back({false, {},
+                                      emit_output && keep_emoji && token.size() > 1
+                                          ? "（" + token.substr(1) + "）" : std::string{},
+                                      1, false});
+                    index = end + 1;
+                    continue;
+                }
+                if (is_aviutl_text_control(token)) {
+                    index = end + 1;
+                    continue;
+                }
+            }
+        }
+        const size_t size = utf8_character_size(input, index);
+        const bool line_break = input[index] == '\r' || input[index] == '\n';
+        tokens.push_back({false, {}, emit_output ? input.substr(index, size) : std::string{},
+                          line_break ? 0 : 1, line_break});
+        index += size;
+    }
+}
+
 // Builds coarse subtitle intervals from AviUtl2's timing controls.  Character
 // reveal is only used to advance time; it never creates one SRT cue per glyph.
 inline std::vector<TimedBlock> build_timing_controlled_text(
@@ -354,7 +436,8 @@ inline std::vector<TimedBlock> build_timing_controlled_text(
     double initial_speed, bool keep_ruby, bool keep_emoji) {
     std::vector<TimedBlock> output;
     if (object_end <= object_start) return output;
-    const std::string text = sanitize_aviutl_text(preserve_text_timing_controls(source), keep_ruby, keep_emoji);
+    std::vector<TimingInputToken> tokens;
+    append_timing_input_tokens(source, keep_ruby, keep_emoji, true, tokens);
     double cursor = static_cast<double>(object_start);
     double speed = initial_speed;
     int visible_count = 0;
@@ -372,55 +455,41 @@ inline std::vector<TimedBlock> build_timing_controlled_text(
         active_text.clear();
         visible_count = 0;
     };
-    for (size_t index = 0; index < text.size();) {
-        if (text[index] == '\x1e') {
-            const size_t end = text.find('\x1f', index + 1);
-            if (end != std::string::npos) {
-                TextTimingControl control{};
-                if (parse_text_timing_control(text.substr(index + 1, end - index - 1), control)) {
-                    if (control.type == 'r') speed = control.reset ? initial_speed : control.value;
-                    else {
-                        const double multiplier = control.multiplier ? visible_count : 1;
-                        cursor += control.value * multiplier * 1000.0;
-                        if (control.type == 'c') {
-                            finish();
-                            displayed_text.clear();
-                            visible_count = 0;
-                            index = end + 1;
-                            if (index < text.size() && text[index] == '\r') ++index;
-                            if (index < text.size() && text[index] == '\n') ++index;
-                            continue;
-                        }
-                        // During a wait the already displayed text remains
-                        // visible.  Emit it through the wait, then make the
-                        // following text start a new coarse SRT cue.
-                        if (active) {
-                            const int carried_visible_count = visible_count;
-                            finish();
-                            visible_count = carried_visible_count;
-                        }
-                    }
-                    index = end + 1;
-                    continue;
-                }
+    for (size_t index = 0; index < tokens.size(); ++index) {
+        const auto& token = tokens[index];
+        if (token.is_control) {
+            const auto& control = token.control;
+            if (control.type == 'r') { speed = control.reset ? initial_speed : control.value; continue; }
+            const double multiplier = control.multiplier ? visible_count : 1;
+            cursor += control.value * multiplier * 1000.0;
+            if (control.type == 'c') {
+                finish();
+                displayed_text.clear();
+                visible_count = 0;
+                if (index + 1 < tokens.size() && tokens[index + 1].line_break) ++index;
+                continue;
             }
+            // During a wait the already displayed text remains on screen.
+            if (active) {
+                const int carried_visible_count = visible_count;
+                finish();
+                visible_count = carried_visible_count;
+            }
+            continue;
         }
-        const size_t size = utf8_character_size(text, index);
-        const bool line_break = text[index] == '\r' || text[index] == '\n';
         if (cursor < object_end) {
-            if (!active && !line_break) {
+            if (!active && !token.line_break && !token.output.empty()) {
                 active = true;
                 active_start = cursor;
                 active_text = displayed_text;
             }
-            if (active) active_text.append(text, index, size);
-            if (!line_break) {
-                displayed_text.append(text, index, size);
-                ++visible_count;
-                if (speed > 0) cursor += 1000.0 / speed;
+            if (active) active_text += token.output;
+            if (!token.line_break) {
+                displayed_text += token.output;
+                visible_count += token.visible_units;
+                if (speed > 0) cursor += token.visible_units * 1000.0 / speed;
             }
         }
-        index += size;
     }
     if (active) {
         cursor = std::max(cursor, static_cast<double>(object_end));
