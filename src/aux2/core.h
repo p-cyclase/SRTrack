@@ -445,14 +445,19 @@ inline std::vector<TimedBlock> merge_timed_blocks(const std::vector<TimedBlock>&
     std::vector<TimedBlock> out;
     for (size_t i = 0; i < raw.size();) {
         TimedBlock block = raw[i++];
-        while (block.end - block.start < minimum_duration_ms && i < raw.size()) {
-            // A short caption becomes the leading text of the immediately
-            // following caption.  No separator is inserted in the initial UI.
+        while (block.end - block.start < minimum_duration_ms) {
+            const int64_t required_end = block.start + minimum_duration_ms;
+            if (i == raw.size() || raw[i].start >= required_end) {
+                // Keep an independent short caption when it can reach the
+                // minimum duration before the next caption starts.
+                block.end = required_end;
+                break;
+            }
+            // The next caption starts before the current one can be extended.
+            // Combine it and evaluate the resulting duration again.
             block.text += raw[i].text;
             block.end = raw[i++].end;
         }
-        if (i == raw.size() && block.end - block.start < minimum_duration_ms)
-            block.end = std::max(block.end, block.start + minimum_duration_ms);
         if (block.end > block.start) out.push_back(std::move(block));
     }
     return out;

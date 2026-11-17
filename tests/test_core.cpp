@@ -55,6 +55,16 @@ int main() {
 
   auto ordinary_short = merge_timed_blocks({{0, 100, "A"}, {300, 1000, "B"}}, 500);
   assert(ordinary_short.size() == 1 && ordinary_short[0].start == 0 && ordinary_short[0].end == 1000 && ordinary_short[0].text == "AB");
+  auto independently_extended = merge_timed_blocks({{0, 100, "A"}, {500, 1000, "B"}}, 500);
+  assert(independently_extended.size() == 2);
+  assert(independently_extended[0].start == 0 && independently_extended[0].end == 500 && independently_extended[0].text == "A");
+  assert(independently_extended[1].start == 500 && independently_extended[1].end == 1000 && independently_extended[1].text == "B");
+  auto separated_short = merge_timed_blocks({{0, 100, "A"}, {700, 800, "B"}}, 500);
+  assert(separated_short.size() == 2);
+  assert(separated_short[0].start == 0 && separated_short[0].end == 500 && separated_short[0].text == "A");
+  assert(separated_short[1].start == 700 && separated_short[1].end == 1200 && separated_short[1].text == "B");
+  auto cascading_short = merge_timed_blocks({{0, 100, "A"}, {300, 350, "B"}, {450, 1000, "C"}}, 500);
+  assert(cascading_short.size() == 1 && cascading_short[0].start == 0 && cascading_short[0].end == 1000 && cascading_short[0].text == "ABC");
   auto final_short = merge_timed_blocks({{0, 50, "A"}}, 500);
   assert(final_short.size() == 1 && final_short[0].end == 500);
 
