@@ -171,9 +171,7 @@ void on_srt_file_drop(EDIT_SECTION* edit, LPCWSTR file) {
   // group structure to reproduce.  It is the same Object a user can insert
   // from AviUtl2's Object menu, with only its initial values supplied here.
   edit->set_object_item_value(object, effect, L"SRT ファイル", path.c_str());
-  if (!importer_settings.fix) {
-    edit->set_object_item_value(object, effect, L"動画全長", "0.000");
-  }
+  edit->set_object_item_value(object, effect, L"全長", "0.000");
   edit->set_object_item_value(object, effect, L"字幕プレビュー", "1");
   add_diagnostic(DiagnosticSeverity::info, L"Importer", L"IMP-SRT-CREATE",
                  L"SRT 単体ドロップから Object を作成しました。", L"SRTrack で取り込みました。",

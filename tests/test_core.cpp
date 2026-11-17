@@ -24,6 +24,20 @@ int main() {
   auto looped = map_looped_srt_to_scene({{1000, 2000, "A", 0}, {4000, 5000, "B", 1}},
                                         10000, 22000, 4000, 5000, 1.0);
   assert(looped.size() == 5 && looped[0].text == "B" && looped[4].end == 21000);
+  // Both video-bound and fix Objects use the same loop mapper.  The only
+  // difference is the timeline start supplied to the transformation.
+  auto fixed_looped = map_video_bound_srt_segment(
+      {{1000, 2000, "A", 0}, {4000, 5000, "B", 1}}, 10000, 22000,
+      10000, 4000, 1.0, true, 5000);
+  assert(fixed_looped.size() == looped.size() && fixed_looped[0].text == "B" && fixed_looped[4].end == 21000);
+  // A loop folds source time into [0, D): captions beyond D do not leak into
+  // the next cycle, and captions crossing D end at the cycle boundary.
+  auto clipped_loop = map_looped_srt_to_scene(
+      {{0, 3000, "A", 0}, {3000, 6000, "B", 1}, {6000, 9000, "C", 2}},
+      0, 15000, 0, 5000, 1.0);
+  assert(clipped_loop.size() == 6 && clipped_loop[0].text == "A" && clipped_loop[1].text == "B");
+  assert(clipped_loop[1].end == 5000 && clipped_loop[2].start == 5000 && clipped_loop[2].text == "A");
+  assert(clipped_loop[5].end == 15000 && clipped_loop[5].text == "B");
 
   // A caption's own end creates a gap; it is never extended merely because a
   // later caption exists.

@@ -18,7 +18,7 @@
 | 0〜3秒 | 正常なfix Object | なし |
 | 3〜6秒 | 存在しないSRT | `EXP-SRT-READ` エラー |
 | 6〜9秒 | 一部壊れたSRT | `EXP-SRT-PARSE` 警告 |
-| 9〜12秒 | ループ動画と `D=0` | `EXP-VIDEO-DURATION` エラー |
+| 9〜12秒 | ループ動画と `D=0` | `EXP-LOOP-DURATION` エラー |
 | 12〜15秒 | 上側に動画なし | `EXP-VIDEO-END` 情報 |
 | 15〜18秒 | txt Object | なし |
 

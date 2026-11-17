@@ -57,6 +57,8 @@ effect.name=SRTrackObject(fix)
 SRT ファイル=C:\Codex\SRTrack\tests\manual\fixtures\fix.srt
 再生位置=0.000
 再生速度=100.00
+ループ再生=0
+全長=0.000
 字幕プレビュー=1
 [1.1]
 effect.name=標準描画
@@ -68,6 +70,8 @@ effect.name=SRTrackObject(fix)
 SRT ファイル=C:\Codex\SRTrack\tests\diagnostics\fixtures\diagnostic-missing.srt
 再生位置=0.000
 再生速度=100.00
+ループ再生=0
+全長=0.000
 字幕プレビュー=1
 [2.1]
 effect.name=標準描画
@@ -79,6 +83,8 @@ effect.name=SRTrackObject(fix)
 SRT ファイル=C:\Codex\SRTrack\tests\diagnostics\fixtures\diagnostic-partial.srt
 再生位置=0.000
 再生速度=100.00
+ループ再生=0
+全長=0.000
 字幕プレビュー=1
 [3.1]
 effect.name=標準描画
@@ -88,7 +94,7 @@ frame=270,359
 [4.0]
 effect.name=SRTrackObject
 SRT ファイル=C:\Codex\SRTrack\tests\manual\fixtures\regression-video.srt
-動画全長=0.000
+全長=0.000
 字幕プレビュー=1
 [4.1]
 effect.name=標準描画
@@ -98,7 +104,7 @@ frame=360,449
 [5.0]
 effect.name=SRTrackObject
 SRT ファイル=C:\Codex\SRTrack\tests\manual\fixtures\regression-video.srt
-動画全長=30.000
+全長=30.000
 字幕プレビュー=1
 [5.1]
 effect.name=標準描画

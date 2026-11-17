@@ -3,6 +3,8 @@
 --file@file:SRT ファイル
 --track@position:再生位置,0,86400,0,0.001
 --track@speed:再生速度,0.01,1000,100,0.01
+--check@loop:ループ再生,false
+--track@source_duration:全長,0,86400,0,0.001
 --check@preview:字幕プレビュー,true
 
 local function draw(text, color)
@@ -48,6 +50,7 @@ end
 if obj.getinfo("saving") or not preview or not global_preview_enabled() then clear()
 elseif not file or file=="" then draw("[SRTrack] SRT ファイルが指定されていません",0xff8080)
 elseif not speed or speed<=0 then draw("[SRTrack] SRT 再生速度は正の値にしてください",0xff8080)
+elseif loop and (not source_duration or source_duration<=0) then draw("[SRTrack] ループ再生には全長が必要です",0xff8080)
 else
     local key="__srtrack_fix_"..obj.id
     if global[key.."_path"]~=file then
@@ -69,7 +72,9 @@ else
         if #parsed==0 and bytes~="" then
             draw("[SRTrack] 有効な SRT 字幕が見つかりません",0xff8080)
         else
-            local now=position*1000+(speed/100)*obj.time*1000; local text={}
+            local now=position*1000+(speed/100)*obj.time*1000
+            if loop then now=now%(source_duration*1000) end
+            local text={}
             for _,c in ipairs(parsed) do if c.a<=now and now<c.b then text[#text+1]=c.text end end
             if #text==0 then clear() else draw(table.concat(text,"\n")) end
         end

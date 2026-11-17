@@ -19,7 +19,7 @@
 | Layer 1〜2 | 45〜60秒 | 再生開始位置 `P=10` 秒のケース |
 | Layer 1〜2 | 60〜75秒 | 動画より3秒遅れて始まるObjectの開始位置差 |
 | Layer 2 | 75〜90秒 | 1つ上に動画がない動画追従Object |
-| Layer 2 | 90〜105秒 | SRTrack Object (fix) と `fix.srt` |
+| Layer 2 | 90〜105秒 | 5秒周期でループする SRTrack Object (fix) と `fix.srt` |
 | Layer 3〜6 | 105〜110秒 | 同時開始する `SIM-A`〜`SIM-D` |
 | Layer 3 | 110〜128秒 | `<r>`、`<w>`、`<w*>`、`<c>`、`<c*>` |
 | Layer 3 | 128〜134秒 | ルビ・絵文字・装飾・コメント・Lua の変換 |

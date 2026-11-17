@@ -2,7 +2,7 @@
 
 > **初期版の Object 構成**：`SRTrack Object`、`SRTrack Object (fix)`、`SRTrack Object (txt)` の三種を提供する。`fix` 型と `txt` 型は初期版で実装済みである。
 >
-> **次回実装方針**：通常 Object の `動画全長` は `全長` へ改称する。`fix` 型にも `全長` とループ再生を追加し、動画 Object を参照しない点以外の時間変換機能を通常 Object と揃える。以下の `全長`・`fix` 型の記述は、この変更後の仕様である。
+> **実装済みの拡張**：通常 Object の `動画全長` は `全長` へ改称した。`fix` 型にも `全長` とループ再生を追加し、動画 Object を参照しない点以外の時間変換機能を通常 Object と揃えた。
 
 ## 2.1 三つの Object
 
@@ -11,7 +11,7 @@ SRTrack は、動画追従、独立した SRT、個別テキストを別の Obje
 | Object | 時間変換の基準 | 主な用途 | 状態 |
 | --- | --- | --- | --- |
 | SRTrack Object | 同じ時刻に自身よりLayer 1側で最も近い標準 `動画ファイル` Object | レンダリング済み動画と対応する SRT | `SRTrackObject.obj2`、初期版完成 |
-| SRTrack Object (fix) | Object 自身の再生開始位置・速度・ループ再生 | 動画と独立した SRT の配置 | `SRTrackObject(fix).obj2`、ループ再生拡張を実装予定 |
+| SRTrack Object (fix) | Object 自身の再生開始位置・速度・ループ再生 | 動画と独立した SRT の配置 | `SRTrackObject(fix).obj2`、初期版完成 |
 | SRTrack Object (txt) | Object 自身のタイムライン範囲 | SRT にだけ出力する補足・個別字幕 | `SRTrackObject(txt).obj2`、初期版完成 |
 
 `SRTrack Object` と `SRTrack Object (fix)` は SRT ファイルを読み、`SRTrack Object (txt)` は自由入力テキストを読む。三者とも Exporter の字幕ソースになり、編集用字幕プレビューを任意に表示する。プレビューは確認専用であり、動画書き出し中は描画しない。標準テキスト等との統合・結合・オフセット後の最終 SRT と Preview 表示の一致は要件にしないが、各 Object が単独で変換する字幕時刻は Exporter と Preview で一致させる。

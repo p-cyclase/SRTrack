@@ -198,6 +198,17 @@ static bool read_video_playback(EDIT_SECTION* edit,OBJECT_HANDLE object,VideoPla
  if(!loop_value.empty()&&!parse_check(loop_value,playback.loop))return false;
  return parse_first_number(range,playback.position)&&parse_number(speed_value,playback.speed)&&playback.position>=0&&playback.speed>0;
 }
+static bool read_fixed_playback(EDIT_SECTION* edit,OBJECT_HANDLE object,const wchar_t* effect,VideoPlayback& playback){
+ std::string position_value,speed_value,loop_value;
+ if(!get_object_item_string(edit,object,effect,L"再生位置",position_value)||!get_object_item_string(edit,object,effect,L"再生速度",speed_value)||!get_object_item_string(edit,object,effect,L"ループ再生",loop_value))return false;
+ return parse_number(position_value,playback.position)&&parse_number(speed_value,playback.speed)&&parse_check(loop_value,playback.loop)&&playback.position>=0&&playback.speed>0;
+}
+static bool read_source_duration(EDIT_SECTION* edit,OBJECT_HANDLE object,const wchar_t* effect,int64_t& duration){
+ std::string value;double seconds=0;
+ if(!get_object_item_string(edit,object,effect,L"全長",value)||!parse_number(value,seconds)||seconds<0)return false;
+ duration=int64_t(std::llround(seconds*1000));
+ return true;
+}
 struct ExportDiagnostics { int warnings=0; int errors=0; };
 static const wchar_t* diagnostic_object_name(const wchar_t* object_kind){
  if(!object_kind)return L"";
@@ -270,14 +281,17 @@ static void append_video_bound_srt(EDIT_SECTION* edit,OBJECT_HANDLE object,const
   }
   VideoPlayback playback;if(!read_video_playback(edit,segment.object,playback)){export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-VIDEO-PLAYBACK",L"参照動画の再生設定を取得できません。",L"該当区間を除外しました。",effect,&location);continue;}
   const int64_t scene_start=frame_milliseconds(segment.start,rate,scale),scene_end=frame_milliseconds(segment.end,rate,scale),video_start=frame_milliseconds(segment.location.start,rate,scale);
-  if(playback.loop&&source_duration<=0){export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-VIDEO-DURATION",L"ループ再生に必要な動画全長を取得できません。",L"該当区間を除外しました。",effect,&location);continue;}
+  if(playback.loop&&source_duration<=0){export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-LOOP-DURATION",L"ループ再生には全長が必要です。",L"該当区間を除外しました。",effect,&location);continue;}
   auto mapped=map_video_bound_srt_segment(parsed,scene_start,scene_end,video_start,int64_t(std::llround(playback.position*1000)),playback.speed/100,playback.loop,source_duration);
   for(auto& block:mapped)sources.push_back({block.start,block.end,std::move(block.text),location.layer,order++});
  }
 }
-static void append_fixed_srt(EDIT_SECTION* edit,OBJECT_HANDLE object,const OBJECT_LAYER_FRAME& location,const wchar_t* effect,const std::vector<SrtCaption>& parsed,int rate,int scale,std::vector<SourceTimedCaption>& sources,size_t& order,ExportDiagnostics& diagnostics){
- std::string position_value,speed_value;double position=0,speed=0;if(!get_object_item_string(edit,object,effect,L"再生位置",position_value)||!get_object_item_string(edit,object,effect,L"再生速度",speed_value)||!parse_number(position_value,position)||!parse_number(speed_value,speed)||position<0||speed<=0){export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-FIX-PLAYBACK",L"fix Object の再生設定を取得できません。",L"この Object を除外しました。",effect,&location);return;}
- const int64_t scene_start=frame_milliseconds(location.start,rate,scale),scene_end=frame_milliseconds(location.end+1,rate,scale);auto mapped=map_srt_to_scene(parsed,scene_start,scene_end,int64_t(std::llround(position*1000)),speed/100);for(auto& block:mapped)sources.push_back({block.start,block.end,std::move(block.text),location.layer,order++});
+static void append_fixed_srt(EDIT_SECTION* edit,OBJECT_HANDLE object,const OBJECT_LAYER_FRAME& location,const wchar_t* effect,const std::vector<SrtCaption>& parsed,int64_t source_duration,int rate,int scale,std::vector<SourceTimedCaption>& sources,size_t& order,ExportDiagnostics& diagnostics){
+ VideoPlayback playback;if(!read_fixed_playback(edit,object,effect,playback)){export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-FIX-PLAYBACK",L"fix Object の再生設定を取得できません。",L"この Object を除外しました。",effect,&location);return;}
+ if(playback.loop&&source_duration<=0){export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-LOOP-DURATION",L"ループ再生には全長が必要です。",L"この Object を除外しました。",effect,&location);return;}
+ const int64_t scene_start=frame_milliseconds(location.start,rate,scale),scene_end=frame_milliseconds(location.end+1,rate,scale);
+ auto mapped=map_video_bound_srt_segment(parsed,scene_start,scene_end,scene_start,int64_t(std::llround(playback.position*1000)),playback.speed/100,playback.loop,source_duration);
+ for(auto& block:mapped)sources.push_back({block.start,block.end,std::move(block.text),location.layer,order++});
 }
 static bool append_txt_source(EDIT_SECTION* edit,OBJECT_HANDLE object,const OBJECT_LAYER_FRAME& location,const wchar_t* effect,std::vector<SourceTimedCaption>& sources,size_t& order){
  std::string text;if(!get_object_item_string(edit,object,effect,L"テキスト",text))return false;
@@ -314,7 +328,7 @@ static void export_subtitles(EDIT_SECTION* edit){
   if(effect){const size_t before=sources.size();append_text_source(edit,obj,loc,effect,layer,sources,source_order);if(sources.size()>before)++caption_count;else{std::string raw_text;if(!get_object_item_string(edit,obj,effect,L"テキスト",raw_text))export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-TEXT-READ",L"テキスト内容を取得できません。",L"この Object を除外しました。",effect,&loc);}}
   if(issrtrack&&settings.srtrack){
    if(srtrack_effect.kind==SrtrackObjectKind::text){const size_t before=sources.size();if(!append_txt_source(edit,obj,loc,srtrack_effect.name,sources,source_order))export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-TXT-READ",L"txt Object のテキストを取得できません。",L"この Object を除外しました。",srtrack_effect.name,&loc);else if(sources.size()>before)++caption_count;}
-   else {std::vector<SrtCaption> parsed;if(read_srt_source(edit,obj,srtrack_effect.name,loc,parsed,diagnostics)){if(srtrack_effect.kind==SrtrackObjectKind::fix)append_fixed_srt(edit,obj,loc,srtrack_effect.name,parsed,edit->info->rate,edit->info->scale,sources,source_order,diagnostics);else{std::string duration_value;double duration=0;if(get_object_item_string(edit,obj,srtrack_effect.name,L"動画全長",duration_value)&&parse_number(duration_value,duration)&&duration>=0)append_video_bound_srt(edit,obj,loc,srtrack_effect.name,parsed,int64_t(std::llround(duration*1000)),edit->info->rate,edit->info->scale,sources,source_order,diagnostics);else export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-VIDEO-DURATION",L"動画全長を取得できません。",L"この Object を除外しました。",srtrack_effect.name,&loc);}++srt_count;}}
+   else {std::vector<SrtCaption> parsed;if(read_srt_source(edit,obj,srtrack_effect.name,loc,parsed,diagnostics)){int64_t source_duration=0;read_source_duration(edit,obj,srtrack_effect.name,source_duration);if(srtrack_effect.kind==SrtrackObjectKind::fix)append_fixed_srt(edit,obj,loc,srtrack_effect.name,parsed,source_duration,edit->info->rate,edit->info->scale,sources,source_order,diagnostics);else append_video_bound_srt(edit,obj,loc,srtrack_effect.name,parsed,source_duration,edit->info->rate,edit->info->scale,sources,source_order,diagnostics);++srt_count;}}
   }
   pos=loc.end+1;}}
  if(sources.empty()){add_diagnostic(DiagnosticSeverity::warning,L"Exporter",L"EXP-CAPTION-EMPTY",L"字幕を取得できませんでした。",L"出力を中止しました。");MessageBoxW(owner,L"字幕を取得できませんでした。対象レイヤーとオブジェクトを確認してください。",L"SRTrack Exporter",MB_ICONWARNING);return;}

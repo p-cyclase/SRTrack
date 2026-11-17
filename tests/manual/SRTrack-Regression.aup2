@@ -155,7 +155,7 @@ frame=0,899
 [6.0]
 effect.name=SRTrackObject
 SRT ファイル=C:\Codex\SRTrack\tests\manual\fixtures\regression-video.srt
-動画全長=30.000
+全長=30.000
 字幕プレビュー=1
 [6.1]
 effect.name=標準描画
@@ -165,7 +165,7 @@ frame=900,1349
 [7.0]
 effect.name=SRTrackObject
 SRT ファイル=C:\Codex\SRTrack\tests\manual\fixtures\regression-video.srt
-動画全長=30.000
+全長=30.000
 字幕プレビュー=1
 [7.1]
 effect.name=標準描画
@@ -175,7 +175,7 @@ frame=1350,1799
 [8.0]
 effect.name=SRTrackObject
 SRT ファイル=C:\Codex\SRTrack\tests\manual\fixtures\regression-video.srt
-動画全長=30.000
+全長=30.000
 字幕プレビュー=1
 [8.1]
 effect.name=標準描画
@@ -185,7 +185,7 @@ frame=1890,2249
 [9.0]
 effect.name=SRTrackObject
 SRT ファイル=C:\Codex\SRTrack\tests\manual\fixtures\regression-video.srt
-動画全長=30.000
+全長=30.000
 字幕プレビュー=1
 [9.1]
 effect.name=標準描画
@@ -195,7 +195,7 @@ frame=2250,2699
 [10.0]
 effect.name=SRTrackObject
 SRT ファイル=C:\Codex\SRTrack\tests\manual\fixtures\regression-video.srt
-動画全長=30.000
+全長=30.000
 字幕プレビュー=1
 [10.1]
 effect.name=標準描画
@@ -207,6 +207,8 @@ effect.name=SRTrackObject(fix)
 SRT ファイル=C:\Codex\SRTrack\tests\manual\fixtures\fix.srt
 再生位置=0.000
 再生速度=100.00
+ループ再生=1
+全長=5.000
 字幕プレビュー=1
 [11.1]
 effect.name=標準描画
@@ -216,7 +218,7 @@ frame=4020,4199
 [12.0]
 effect.name=SRTrackObject
 SRT ファイル=C:\Codex\SRTrack\tests\manual\fixtures\regression-video.srt
-動画全長=30.000
+全長=30.000
 字幕プレビュー=1
 [12.1]
 effect.name=標準描画
@@ -226,7 +228,7 @@ frame=4200,4349
 [13.0]
 effect.name=SRTrackObject
 SRT ファイル=C:\Codex\SRTrack\tests\manual\fixtures\regression-video.srt
-動画全長=30.000
+全長=30.000
 字幕プレビュー=1
 [13.1]
 effect.name=標準描画
@@ -236,7 +238,7 @@ frame=4500,5399
 [27.0]
 effect.name=SRTrackObject
 SRT ファイル=C:\Codex\SRTrack\tests\manual\fixtures\regression-video.srt
-動画全長=30.000
+全長=30.000
 字幕プレビュー=1
 [27.1]
 effect.name=標準描画
@@ -246,7 +248,7 @@ frame=5400,6299
 [28.0]
 effect.name=SRTrackObject
 SRT ファイル=C:\Codex\SRTrack\tests\manual\fixtures\regression-video.srt
-動画全長=30.000
+全長=30.000
 字幕プレビュー=1
 [28.1]
 effect.name=標準描画
@@ -420,7 +422,7 @@ frame=6300,6479
 [31.0]
 effect.name=SRTrackObject
 SRT ファイル=C:\Codex\SRTrack\tests\manual\fixtures\regression-video.srt
-動画全長=30.000
+全長=30.000
 字幕プレビュー=1
 [31.1]
 effect.name=標準描画

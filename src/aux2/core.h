@@ -111,10 +111,10 @@ inline std::vector<TimedBlock> map_srt_to_scene(const std::vector<SrtCaption>& c
     return out;
 }
 
-// Map a looping source whose original video duration is the repeat period.
+// Map a looping source whose configured duration is the repeat period.
 // The source starts at source_start, advances at speed, then wraps to zero
 // whenever it reaches source_duration.  The current non-looping range end is
-// intentionally not used: D is the loop period retained by SRTrack Object.
+// intentionally not used: D is the loop period retained by the source Object.
 inline std::vector<TimedBlock> map_looped_srt_to_scene(const std::vector<SrtCaption>& captions,
                                                         int64_t object_start, int64_t object_end,
                                                         int64_t source_start, int64_t source_duration,
@@ -123,11 +123,17 @@ inline std::vector<TimedBlock> map_looped_srt_to_scene(const std::vector<SrtCapt
     if (object_end <= object_start || source_duration <= 0 || speed <= 0) return out;
     const int64_t source_end = source_start + static_cast<int64_t>(std::llround(speed * (object_end - object_start)));
     for (const auto& caption : captions) {
-        int64_t cycle = (source_start - caption.end) / source_duration;
-        if (source_start - caption.end < 0 && (source_start - caption.end) % source_duration) --cycle;
+        // Preview folds the current source time into [0, D).  Match that
+        // behavior here: a caption outside the configured period never
+        // appears after a wrap, and a caption crossing D ends at the wrap.
+        const int64_t caption_start = std::max<int64_t>(0, caption.start);
+        const int64_t caption_end = std::min<int64_t>(source_duration, caption.end);
+        if (caption_end <= caption_start) continue;
+        int64_t cycle = (source_start - caption_end) / source_duration;
+        if (source_start - caption_end < 0 && (source_start - caption_end) % source_duration) --cycle;
         for (;; ++cycle) {
-            const int64_t left_source = caption.start + cycle * source_duration;
-            const int64_t right_source = caption.end + cycle * source_duration;
+            const int64_t left_source = caption_start + cycle * source_duration;
+            const int64_t right_source = caption_end + cycle * source_duration;
             if (left_source >= source_end) break;
             const int64_t left = std::max(left_source, source_start);
             const int64_t right = std::min(right_source, source_end);
