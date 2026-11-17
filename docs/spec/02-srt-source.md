@@ -1,6 +1,8 @@
 # 2. SRTrack Object と入力データ
 
 > **初期版の Object 構成**：`SRTrack Object`、`SRTrack Object (fix)`、`SRTrack Object (txt)` の三種を提供する。`fix` 型と `txt` 型は初期版で実装済みである。
+>
+> **次回実装方針**：通常 Object の `動画全長` は `全長` へ改称する。`fix` 型にも `全長` とループ再生を追加し、動画 Object を参照しない点以外の時間変換機能を通常 Object と揃える。以下の `全長`・`fix` 型の記述は、この変更後の仕様である。
 
 ## 2.1 三つの Object
 
@@ -9,14 +11,14 @@ SRTrack は、動画追従、独立した SRT、個別テキストを別の Obje
 | Object | 時間変換の基準 | 主な用途 | 状態 |
 | --- | --- | --- | --- |
 | SRTrack Object | 同じ時刻に自身よりLayer 1側で最も近い標準 `動画ファイル` Object | レンダリング済み動画と対応する SRT | `SRTrackObject.obj2`、初期版完成 |
-| SRTrack Object (fix) | Object 自身の再生開始位置と速度 | 動画と独立した SRT の配置 | `SRTrackObject(fix).obj2`、初期版完成 |
+| SRTrack Object (fix) | Object 自身の再生開始位置・速度・ループ再生 | 動画と独立した SRT の配置 | `SRTrackObject(fix).obj2`、ループ再生拡張を実装予定 |
 | SRTrack Object (txt) | Object 自身のタイムライン範囲 | SRT にだけ出力する補足・個別字幕 | `SRTrackObject(txt).obj2`、初期版完成 |
 
 `SRTrack Object` と `SRTrack Object (fix)` は SRT ファイルを読み、`SRTrack Object (txt)` は自由入力テキストを読む。三者とも Exporter の字幕ソースになり、編集用字幕プレビューを任意に表示する。プレビューは確認専用であり、動画書き出し中は描画しない。標準テキスト等との統合・結合・オフセット後の最終 SRT と Preview 表示の一致は要件にしないが、各 Object が単独で変換する字幕時刻は Exporter と Preview で一致させる。
 
 ## 2.2 SRTrack Object
 
-SRTrack Object は動画に付随する主用途の字幕側 Object である。保持する項目は `SRT ファイル`、`動画全長 D`、`字幕プレビュー` とする。`D` は画面へ表示し、Importer が初回配置時に元動画の全長として設定する。取得不能時は `0` を設定する。`D` はループの周期だけに使い、移動・分割・伸縮では変更しない。AviUtl2 の UI 上で手動変更できる場合は動画との整合性が崩れうるため、変更は非推奨とする。
+SRTrack Object は動画に付随する主用途の字幕側 Object である。保持する項目は `SRT ファイル`、`全長 D`、`字幕プレビュー` とする。`D` は画面へ表示し、Importer が初回配置時に元動画の全長として設定する。取得不能時は `0` を設定する。`D` はループの周期だけに使い、移動・分割・伸縮では変更しない。AviUtl2 の UI 上で手動変更できる場合は動画との整合性が崩れうるため、変更は非推奨とする。
 
 再生位置 `P`、再生速度、ループ再生は SRTrack Object に保存しない。Object が存在する各時刻で、自身よりLayer 1側を順に探索し、最初に見つかる標準 `動画ファイル` Object の現在値を直接参照する。動画以外のObjectは読み飛ばし、SRTrack Objectより下側のObjectは参照しない。有効区間の終端は、参照動画 Object がタイムライン上に存在する終端とする。動画と SRTrack Object をグループ化することは、移動・分割・伸縮時にこの上下関係を保ちやすくする補助であり、参照の成立条件ではない。
 
@@ -24,11 +26,13 @@ SRTrack Object は動画に付随する主用途の字幕側 Object である。
 
 ## 2.3 SRTrack Object (fix)
 
-SRTrack Object (fix) は動画を参照しない補助的な Object である。`SRT ファイル`、再生開始位置 `P`、再生速度、`字幕プレビュー` と Object 自身のタイムライン範囲を保持する。`動画全長 D`、ループ再生、動画とのグループ関係は持たない。SRT の最終字幕を過ぎた後は Preview を表示せず、途中で終了したい場合は Object の終端を使う。Exporter も `SRTrack Object` と同じ対象設定で `fix` 型を字幕ソースとして扱う。
+SRTrack Object (fix) は動画を参照しない補助的な Object である。`SRT ファイル`、再生開始位置 `P`、再生速度、ループ再生、`全長 D`、`字幕プレビュー` と Object 自身のタイムライン範囲を保持する。動画 Object を参照しない点以外の時間変換機能は、SRTrack Object と同等とする。
+
+ループ再生がオフなら、現在の再生位置と速度から SRT 時刻を一方向に変換する。オンなら、正の `全長 D` を周期として SRT 時刻を先頭へ折り返す。`D` は動画の長さに限らず、ループの周期を表す値である。ループ再生時に `D` が `0` または取得不能なら、Preview は「ループ再生には全長が必要です」と表示し、Exporter は該当 Object を除外して他の出力を継続する。動画とのグループ関係は持たない。SRT の最終字幕を過ぎた後は、非ループ時には Preview を表示せず、途中で終了したい場合は Object の終端を使う。Exporter も `SRTrack Object` と同じ対象設定で `fix` 型を字幕ソースとして扱う。
 
 ## 2.4 SRTrack Object (txt)
 
-SRTrack Object (txt) は、`テキスト` と `字幕プレビュー` だけを持つ補助的な Object である。動画、SRT ファイル、再生位置、再生速度、動画全長、ループ、グループ関係は持たない。Object の開始から終了まで、入力テキストを一つの字幕候補として扱う。空テキストは字幕候補を生成しない。
+SRTrack Object (txt) は、`テキスト` と `字幕プレビュー` だけを持つ補助的な Object である。動画、SRT ファイル、再生位置、再生速度、全長、ループ、グループ関係は持たない。Object の開始から終了まで、入力テキストを一つの字幕候補として扱う。空テキストは字幕候補を生成しない。
 
 Preview は通常の SRTrack Object と同じ描画経路と座標系を使う。利用者が Object の座標を動かすと、編集画面の Preview も同じ位置へ動く。動画書き出し中は描画しない。Exporter は `txt` 型を SRTrack Object 群の対象設定に含め、Object 範囲をそのまま字幕区間として出力する。
 
@@ -48,7 +52,7 @@ Preview は描画時に、公開Lua APIでSRTrack ObjectよりLayer 1側を探�
 
 この経路は、上側にある最も近い動画 Object を探索するものであり、Objectの描画ごとに上側レイヤーだけを確認する。プロジェクト全体の走査やMonitorを必要としない。フィルタ等の非動画Objectを間へ置いた Preview／Exporter の実機一致は確認済みである。
 
-Lua API で標準動画の再生範囲として直接取得できるのは開始位置 `P` である。Preview の終端は、同じタイムライン範囲へ配置される SRTrack Object 自身の終端で表す。したがって Preview の時間変換には `P`、再生速度、ループ、`D` を使用する。
+Lua API で標準動画の再生範囲として直接取得できるのは開始位置 `P` である。Preview の終端は、同じタイムライン範囲へ配置される SRTrack Object 自身の終端で表す。したがって Preview の時間変換には `P`、再生速度、ループ、`全長 D` を使用する。
 
 ## 2.7 SRT の入力形式
 
@@ -64,4 +68,4 @@ Object 追加メニューでは、三つの Object を `SRTrack` の下へまと
 - `SRTrack` → `SRTrack Object (fix)`
 - `SRTrack` → `SRTrack Object (txt)`
 
-三者とも `字幕プレビュー` を持つ。`SRTrack Object` は上側の直前動画Objectの開始位置・速度・ループと開始位置差を用いる。`SRTrack Object (fix)` は自身が保持する再生位置・速度と Object 内時刻だけを用いる。`SRTrack Object (txt)` は Object の表示範囲と入力テキストを用いる。いずれも Preview は編集画面専用で、動画出力には描画しない。
+三者とも `字幕プレビュー` を持つ。`SRTrack Object` は上側の直前動画Objectの開始位置・速度・ループと開始位置差を用いる。`SRTrack Object (fix)` は自身が保持する再生位置・速度・ループ・全長と Object 内時刻を用いる。`SRTrack Object (txt)` は Object の表示範囲と入力テキストを用いる。いずれも Preview は編集画面専用で、動画出力には描画しない。
