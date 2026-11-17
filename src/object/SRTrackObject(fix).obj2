@@ -13,6 +13,8 @@ local function draw(text, color)
     obj.draw()
 end
 local function clear() obj.load("text", ""); obj.draw() end
+local function setting(text) draw("[SRTrack: 設定] "..text,0xffff80) end
+local function read_failure(text) draw("[SRTrack: 読み込みに失敗] "..text,0xff8080) end
 local function global_preview_enabled()
     local ok,module=pcall(function() return obj.module("SRTrack") end)
     if not ok or not module or not module.preview_enabled then return true end
@@ -48,9 +50,9 @@ local function captions(bytes)
     return out
 end
 if obj.getinfo("saving") or not preview or not global_preview_enabled() then clear()
-elseif not file or file=="" then draw("[SRTrack] SRT ファイルが指定されていません",0xff8080)
-elseif not speed or speed<=0 then draw("[SRTrack] SRT 再生速度は正の値にしてください",0xff8080)
-elseif loop and (not source_duration or source_duration<=0) then draw("[SRTrack] ループ再生には全長が必要です",0xff8080)
+elseif not file or file=="" then setting("SRT ファイルが指定されていません")
+elseif not speed or speed<=0 then setting("SRT 再生速度は正の値にしてください")
+elseif loop and (not source_duration or source_duration<=0) then setting("ループ再生には全長が必要です")
 else
     local key="__srtrack_fix_"..obj.id
     if global[key.."_path"]~=file then
@@ -67,16 +69,16 @@ else
     end
     local err=global[key.."_error"] or ""
     local bytes=global[key.."_bytes"] or ""
-    if err~="" then draw("[SRTrack] "..err,0xff8080) else
+    if err~="" then read_failure(err) else
         local parsed=captions(bytes)
         if #parsed==0 and bytes~="" then
-            draw("[SRTrack] 有効な SRT 字幕が見つかりません",0xff8080)
+            read_failure("有効な SRT 字幕が見つかりません")
         else
             local now=position*1000+(speed/100)*obj.time*1000
             if loop then now=now%(source_duration*1000) end
             local text={}
             for _,c in ipairs(parsed) do if c.a<=now and now<c.b then text[#text+1]=c.text end end
-            if #text==0 then clear() else draw(table.concat(text,"\n")) end
+            if #text==0 then clear() else draw("[SRTrack] "..table.concat(text,"\n")) end
         end
     end
 end

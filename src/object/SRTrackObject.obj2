@@ -97,6 +97,18 @@ local function clear_preview()
     obj.draw()
 end
 
+local function draw_notice(text)
+    draw_preview("[SRTrack: 注意] " .. text, 0xffa040, 0x403000)
+end
+
+local function draw_setting(text)
+    draw_preview("[SRTrack: 設定] " .. text, 0xffff80, 0x404000)
+end
+
+local function draw_read_failure(text)
+    draw_preview("[SRTrack: 読み込みに失敗] " .. text, 0xff8080, 0x400000)
+end
+
 -- obj.getvalue(layer, ...) reads the Object present on that layer at the
 -- current frame.  Search upward so filters and other non-video Objects can
 -- stay between SRTrack Object and its nearest upper video Object.
@@ -139,11 +151,15 @@ end
 if obj.getinfo("saving") or not preview or not global_preview_enabled() then
     clear_preview()
 elseif not file or file == "" then
-    draw_preview("[SRTrack] SRT ファイルが指定されていません", 0xff8080, 0x400000)
+    draw_setting("SRT ファイルが指定されていません")
 else
     local state, state_error = nearest_upper_video_state()
     if not state then
-        draw_preview("[SRTrack] " .. state_error, 0xff8080, 0x400000)
+        if state_error == "上側に動画 Object がありません" then
+            draw_notice(state_error)
+        else
+            draw_read_failure(state_error)
+        end
         return
     end
     local cache_prefix = "__srtrack_preview_" .. obj.id
@@ -160,18 +176,18 @@ else
     local message = global[error_key] or ""
     local bytes = global[bytes_key] or ""
     if message ~= "" then
-        draw_preview("[SRTrack] " .. message, 0xff8080, 0x400000)
+        draw_read_failure(message)
     else
         local captions = parse_srt(bytes)
         if #captions == 0 and bytes ~= "" then
-            draw_preview("[SRTrack] 有効な SRT 字幕が見つかりません", 0xff8080, 0x400000)
+            draw_read_failure("有効な SRT 字幕が見つかりません")
         else
             local source_time = state.position * 1000
                 + (state.speed / 100) * (state.offset + obj.time) * 1000
             local in_range = true
             if state.loop then
                 if not source_duration or source_duration <= 0 then
-                    draw_preview("[SRTrack] ループ再生には全長が必要です", 0xff8080, 0x400000)
+                    draw_setting("ループ再生には全長が必要です")
                     return
                 end
                 source_time = source_time % (source_duration * 1000)
@@ -181,7 +197,7 @@ else
             if text == "" then
                 clear_preview()
             else
-                draw_preview(text, 0xffffff, 0x000000)
+                draw_preview("[SRTrack] " .. text, 0xffffff, 0x000000)
             end
         end
     end
