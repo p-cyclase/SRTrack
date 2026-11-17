@@ -9,6 +9,7 @@
 ### Added
 
 - `SRTrack Object`、`SRTrack Object (fix)`、`SRTrack Object (txt)`。
+- 通常 Object と fix Object のループ再生、および全長を周期とする字幕時刻の変換。
 - 標準テキスト、セリフ準備、三種の SRTrack Object を統合する SRT Exporter。
 - 動画＋同名 SRT の組取込と SRT 単体取込を支援する Importer。
 - 編集用字幕 Preview、共通診断ログ、正常系・診断系の手動回帰プロジェクト。

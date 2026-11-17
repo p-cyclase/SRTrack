@@ -6,7 +6,7 @@ SRTrack は AviUtl ExEdit2 上の字幕ソースを統合し、編集後のタ�
 
 レンダリング済み動画だけから、元の字幕文字列とタイミングを正確に復元することは難しい。SRTrack は動画と対応する SRT をタイムラインへ置き、動画を連結・切抜き・分割・速度変更した後にも、元字幕に近い SRT を再出力できるようにする。
 
-字幕 Object は三種類である。`SRTrack Object` は自身よりLayer 1側で最も近い標準動画 Objectを必要な時だけ参照する主用途の Object、`SRTrack Object (fix)` は動画に依存せず自身の再生開始位置と速度を保持する補助的な Object、`SRTrack Object (txt)` は自由入力テキストを Object 範囲の字幕として扱う補助的な Object である。動画の状態をコピーし続ける常駐 Monitor は採用しない。
+字幕 Object は三種類である。`SRTrack Object` は自身よりLayer 1側で最も近い標準動画 Objectを必要な時だけ参照する主用途の Object、`SRTrack Object (fix)` は動画に依存せず自身の再生開始位置・速度・ループ再生・全長を保持する補助的な Object、`SRTrack Object (txt)` は自由入力テキストを Object 範囲の字幕として扱う補助的な Object である。動画の状態をコピーし続ける常駐 Monitor は採用しない。
 
 ## 文書
 
