@@ -15,6 +15,7 @@ SRTrack は初期版完成後も、互換性確認、境界条件、利用者か
 各公開版には Git タグと対応する GitHub Release を作成し、次を添付する。
 
 - `SRTrack-vMAJOR.MINOR.PATCH.zip`
+- `SRTrack-vMAJOR.MINOR.PATCH.au2pkg.zip`
 - その版の変更内容
 
 公開済みの Release asset は置き換えず、後続版は新しいタグと ZIP を追加する。これにより利用者が過去版へ戻れるよう、版ごとの配布物を保全する。
@@ -39,6 +40,8 @@ readme.txt
 
 テストプロジェクト、SRT fixture、動画 fixture、ビルド中間物、ソースコードは配布 ZIP に含めない。利用者は ZIP を AviUtl2 のデータフォルダへ展開する。更新・ロールバックの際は AviUtl2 を終了してから対象版の ZIP を展開する。
 
+同じ版に、AviUtl2 のパッケージ形式である `.au2pkg.zip` も添付する。このZIPのルートには `Plugin/`、`Script/`、`package.ini`、`package.txt` だけを置く。`package.ini` の識別子は `p_cyclase.SRTrack` とし、専用の `Plugin/SRTrack`、`Script/SRTrack` 以外を一括削除する設定は使わない。利用者は `.au2pkg.zip` を AviUtl2 のプレビュー画面へドラッグ＆ドロップして導入できる。
+
 ## 11.5 生成と公開前確認
 
 リリース作業は次の順で行う。
@@ -47,9 +50,9 @@ readme.txt
 2. 正常系・診断系の手動回帰テストと、Importer の空シーン確認を行う。
 3. `CHANGELOG.md` に版の変更内容を記録し、公開日を確定する。
 4. README の現在のバージョンと最終更新日を確定した公開内容へ更新する。
-5. `tools/package-release.ps1 -Version X.Y.Z` を実行して ZIP を生成する。
-6. ZIP の内容が本仕様の構成だけであることを確認する。
-7. Git タグと GitHub Release を作成し、生成した ZIP と変更内容を公開する。
+5. `tools/package-release.ps1 -Version X.Y.Z` を実行して通常ZIPと `.au2pkg.zip` を生成する。
+6. 両方のZIPの内容が本仕様の構成だけであることを確認する。
+7. Git タグと GitHub Release を作成し、生成した両方のZIPと変更内容を公開する。
 
 生成先 `dist/` は Git 管理しない。公開済みの ZIP は GitHub Releases を正本とする。
 
