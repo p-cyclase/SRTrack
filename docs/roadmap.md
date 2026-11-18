@@ -21,7 +21,7 @@ SRTrack v0.1.0 は試験段階の初期公開版です。動画と対応する S
 
 SRTrack は AviUtl2 / ExEdit2 2.1.13、GCMZDrops2、L-SMASH Works を導入した環境で確認しています。すべての AviUtl2 の版、入力形式、他プラグインとの組み合わせを網羅しているわけではありません。
 
-想定と異なる動作を見つけた場合は、再現手順と診断情報を添えて [GitHub Issues](../../issues) へ報告してください。報告方法は [開発・不具合報告について](../CONTRIBUTING.md) にまとめています。
+想定と異なる動作を見つけた場合は、再現手順と診断情報を添えて [GitHub Issues](https://github.com/p-cyclase/SRTrack/issues) へ報告してください。報告方法は [開発・不具合報告について](../CONTRIBUTING.md) にまとめています。
 
 ## 今後の予定
 
@@ -31,4 +31,4 @@ SRTrack は AviUtl2 / ExEdit2 2.1.13、GCMZDrops2、L-SMASH Works を導入し�
 - SRT 内の字幕を `SRTrack Object (txt)` の個別 Object へ分割する変換
 - 利用者からの報告に基づく互換性、診断、操作性の改善
 
-実装の時期や内容を約束するものではありません。要望や優先順位についての意見も GitHub Issues で受け付けます。
+実装の時期や内容を約束するものではありません。要望や優先順位についての意見も [GitHub Issues](https://github.com/p-cyclase/SRTrack/issues) で受け付けます。

@@ -20,4 +20,5 @@ SRTrack は AviUtl2 / ExEdit2 2.1.13 で動作確認しています。
 - GCMZDrops2
 - L-SMASH Works
 
-詳しい使いかた、更新情報、不具合報告は配布元リポジトリを参照してください。
+詳しい使いかた、更新情報、不具合報告は、次の配布元リポジトリを参照してください。
+https://github.com/p-cyclase/SRTrack

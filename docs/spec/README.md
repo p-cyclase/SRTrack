@@ -36,4 +36,4 @@ SRTrack の初期版完成は、要求済みの機能を実装し、代表的な
 
 Object 追加メニューでは `SRTrack` の下に `SRTrack Object`、`SRTrack Object (fix)`、`SRTrack Object (txt)` を表示する。三つの Object は編集用の字幕 Preview に対応する。
 
-SRTrack は未公開開発段階であり、旧単一 Object／Monitor を使う既存プロジェクトとの互換性は要求しない。
+SRTrack は 2026/11/18 に v0.1.0 を初公開した。v1.0.0 の完成に向けて開発を継続する試験段階であり、旧単一 Object／Monitor を使う既存プロジェクトとの互換性は保証しない。

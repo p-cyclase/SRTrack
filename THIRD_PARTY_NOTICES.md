@@ -7,7 +7,7 @@
 SDK distribution: https://spring-fragrance.mints.ne.jp/aviutl/  
 License reference (unofficial SDK mirror): https://github.com/oov/aviutl2_plugin_sdk
 
-The plugin and Preview module use the official headers rather than handwritten interface declarations. The SDK date alone does not establish incompatibility. Standard-text subtitle extraction, SRT output, and basic Preview-module operation have been verified with AviUtl2 2.1.13; compatibility of the full feature set remains unverified. See [SDK policy](docs/SDK_POLICY.md).
+The plugin and Preview module use the official headers rather than handwritten interface declarations. The SDK date alone does not establish incompatibility. Standard-text subtitle extraction, SRT output, and basic Preview-module operation have been verified with AviUtl2 2.1.13; compatibility of the full feature set remains unverified. See [SDK policy](docs/components/sdk-policy.md).
 
 
 ## Microsoft tools and runtime
