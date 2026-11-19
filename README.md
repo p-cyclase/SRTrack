@@ -30,6 +30,18 @@ SRTrack は AviUtl2 / ExEdit2 2.1.13 で動作確認しています。利用前�
 
 ## 導入方法
 
+### AviUtl2カタログから導入
+
+AviUtl2カタログで `SRTrack` を開き、`導入` を選びます。カタログの案内に従って導入してください。
+
+### `.au2pkg.zip` を使う
+
+1. [Releases](https://github.com/p-cyclase/SRTrack/releases) から利用したい版の `SRTrack-vX.Y.Z.au2pkg.zip` を取得します。
+2. AviUtl2 を起動し、ダウンロードした `.au2pkg.zip` をプレビュー画面へドラッグ＆ドロップします。
+3. 表示される案内に従って導入します。初回はプラグインやスクリプトを信頼するか確認されるため、内容を確認したうえで SRTrack の読み込みを信頼します。
+
+### 通常 ZIP を手動で導入
+
 1. [Releases](https://github.com/p-cyclase/SRTrack/releases) から利用したい版の `SRTrack-vX.Y.Z.zip` を取得します。
 2. AviUtl2 を終了します。
 3. ダウンロードした ZIP を任意の場所へ解凍します。
@@ -54,7 +66,7 @@ readme.txt  （読むだけ。コピー不要）
 
 `readme.txt` は導入手順の控えです。AviUtl2 のデータフォルダへコピーする必要はありません。
 
-更新時も同じ手順です。以前の版へ戻したい場合は、GitHub Releases に保管されているその版の ZIP を解凍し、`Pluginフォルダ` と `Scriptフォルダ` をコピーしてください。
+更新時は、導入に使った経路の案内に従ってください。手動導入で以前の版へ戻したい場合は、GitHub Releases に保管されているその版の ZIP を解凍し、`Pluginフォルダ` と `Scriptフォルダ` をコピーしてください。
 
 ## 主な機能
 
