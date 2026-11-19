@@ -6,7 +6,7 @@
 
 - SRTrack の配布物を AviUtl2 へ導入済みであること。
 - `fixtures/regression-video.mp4`、`fixtures/regression-video.srt`、`fixtures/fix.srt` を移動・改名しないこと。
-- プロジェクトは 1920×1080、30fps、243秒である。動画fixture自体は30秒であり、複数回参照する。
+- プロジェクトは 1920×1080、30fps、258秒である。動画fixture自体は30秒であり、複数回参照する。
 
 `regression-video.mp4` には、`regression-video.srt` の3秒ごとの区間に対応する基準表示を入れる。Previewの字幕と動画上の基準表示が同じ区間を指すことを、目視で確認するためである。動画を差し替える場合も、ファイル名・配置・30秒の長さ・30fpsと、SRTの区間に対応する基準表示を維持する。
 
@@ -31,6 +31,7 @@
 | Layer 3 | 216〜222秒 | SRTrack Object (txt) の補足字幕 |
 | Layer 3〜5 | 222〜233秒 | 最小表示時間の単独延長・結合・連鎖結合 |
 | Layer 3 | 233〜243秒 | 半角英数・日本語の混在、ルビ、定義済み・未定義の絵文字を含む時間制御文字 |
+| Layer 1〜2 | 243〜258秒 | 1つの動画 Object 内の中間点による速度変更（100%→50%） |
 
 `.aup2` は AviUtl2 の保存形式に従い、現在の作業環境の絶対パスを保持する。別の場所で開く場合は、動画 Object の `ファイル`、SRTrack Object と fix Object の `SRT ファイル` をそれぞれ `fixtures/` 内の対応ファイルへ指定し直す。
 

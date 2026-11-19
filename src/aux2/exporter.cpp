@@ -192,11 +192,16 @@ static bool parse_check(const std::string& input,bool& output){if(input=="1"||in
 static bool parse_first_number(const std::string& input,double& output){const size_t comma=input.find(',');return parse_number(input.substr(0,comma),output);}
 struct VideoPlayback { double position=0, speed=0; bool loop=false; };
 static bool read_video_playback(EDIT_SECTION* edit,OBJECT_HANDLE object,VideoPlayback& playback){
- std::string range,speed_value,loop_value;
- if(!get_object_item_string(edit,object,L"動画ファイル",L"再生位置",range)||!get_object_item_string(edit,object,L"動画ファイル",L"再生速度",speed_value))return false;
+ std::string range,loop_value;
+ if(!get_object_item_string(edit,object,L"動画ファイル",L"再生位置",range))return false;
  get_object_item_string(edit,object,L"動画ファイル",L"ループ再生",loop_value);
  if(!loop_value.empty()&&!parse_check(loop_value,playback.loop))return false;
- return parse_first_number(range,playback.position)&&parse_number(speed_value,playback.speed)&&playback.position>=0&&playback.speed>0;
+ return parse_first_number(range,playback.position)&&playback.position>=0;
+}
+static bool read_video_speed_at(EDIT_SECTION* edit,OBJECT_HANDLE object,int frame,double& speed){
+ if(edit->get_object_track_value&&edit->get_object_track_value(object,L"動画ファイル",L"再生速度",frame,&speed)&&std::isfinite(speed)&&speed>0)return true;
+ std::string speed_value;
+ return get_object_item_string(edit,object,L"動画ファイル",L"再生速度",speed_value)&&parse_number(speed_value,speed)&&speed>0;
 }
 static bool read_fixed_playback(EDIT_SECTION* edit,OBJECT_HANDLE object,const wchar_t* effect,VideoPlayback& playback){
  std::string position_value,speed_value,loop_value;
@@ -231,6 +236,7 @@ static bool read_srt_source(EDIT_SECTION* edit,OBJECT_HANDLE object,const wchar_
 }
 struct UpperVideoSegment { OBJECT_HANDLE object=nullptr; OBJECT_LAYER_FRAME location{}; };
 struct SelectedVideoSegment { OBJECT_HANDLE object=nullptr; OBJECT_LAYER_FRAME location{}; int start=0,end=0; };
+struct VideoTimingSection { int start=0,end=0; double source_start=0,speed=0; };
 
 static std::vector<UpperVideoSegment> collect_upper_video_segments(EDIT_SECTION* edit,const OBJECT_LAYER_FRAME& location){
  std::vector<UpperVideoSegment> videos;
@@ -269,6 +275,30 @@ static std::vector<SelectedVideoSegment> select_nearest_upper_videos(const std::
  return selected;
 }
 
+static bool build_video_timing_sections(EDIT_SECTION* edit,OBJECT_HANDLE object,const OBJECT_LAYER_FRAME& location,
+                                        const VideoPlayback& playback,int rate,int scale,
+                                        std::vector<VideoTimingSection>& sections){
+ std::vector<int> boundaries{location.start,location.end+1};
+ const int count=edit->get_object_section_num?edit->get_object_section_num(object):1;
+ if(count<1)return false;
+ for(int section=1;section<count;++section){
+  const int frame=edit->get_object_section_frame(object,section);
+  if(frame<=location.start||frame>location.end)return false;
+  boundaries.push_back(frame);
+ }
+ std::sort(boundaries.begin(),boundaries.end());
+ boundaries.erase(std::unique(boundaries.begin(),boundaries.end()),boundaries.end());
+ double source_start=playback.position*1000.0;
+ for(size_t i=0;i+1<boundaries.size();++i){
+  const int start=boundaries[i],end=boundaries[i+1];
+  double speed=0;
+  if(end<=start||!read_video_speed_at(edit,object,start,speed))return false;
+  sections.push_back({start,end,source_start,speed/100.0});
+  source_start+=speed/100.0*(frame_milliseconds(end,rate,scale)-frame_milliseconds(start,rate,scale));
+ }
+ return !sections.empty();
+}
+
 static void append_video_bound_srt(EDIT_SECTION* edit,OBJECT_HANDLE object,const OBJECT_LAYER_FRAME& location,const wchar_t* effect,const std::vector<SrtCaption>& parsed,int64_t source_duration,int rate,int scale,std::vector<SourceTimedCaption>& sources,size_t& order,ExportDiagnostics& diagnostics){
  if(location.layer<=0){export_diagnostic(diagnostics,DiagnosticSeverity::info,L"EXP-VIDEO-END",L"上側に参照可能な動画がないため字幕を終了しました。",L"該当区間は出力しません。",effect,&location);return;}
  const auto videos=collect_upper_video_segments(edit,location);
@@ -280,10 +310,29 @@ static void append_video_bound_srt(EDIT_SECTION* edit,OBJECT_HANDLE object,const
    continue;
   }
   VideoPlayback playback;if(!read_video_playback(edit,segment.object,playback)){export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-VIDEO-PLAYBACK",L"参照動画の再生設定を取得できません。",L"該当区間を除外しました。",effect,&location);continue;}
-  const int64_t scene_start=frame_milliseconds(segment.start,rate,scale),scene_end=frame_milliseconds(segment.end,rate,scale),video_start=frame_milliseconds(segment.location.start,rate,scale);
   if(playback.loop&&source_duration<=0){export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-LOOP-DURATION",L"ループ再生には全長が必要です。",L"該当区間を除外しました。",effect,&location);continue;}
-  auto mapped=map_video_bound_srt_segment(parsed,scene_start,scene_end,video_start,int64_t(std::llround(playback.position*1000)),playback.speed/100,playback.loop,source_duration);
-  for(auto& block:mapped)sources.push_back({block.start,block.end,std::move(block.text),location.layer,order++});
+  std::vector<VideoTimingSection> timing;
+  if(!build_video_timing_sections(edit,segment.object,segment.location,playback,rate,scale,timing)){export_diagnostic(diagnostics,DiagnosticSeverity::error,L"EXP-VIDEO-PLAYBACK",L"参照動画の再生設定を取得できません。",L"該当区間を除外しました。",effect,&location);continue;}
+  const bool midpoint_timing=timing.size()>1;
+  bool first_output=true;
+  for(const auto& section:timing){
+   const int start=std::max(segment.start,section.start),end=std::min(segment.end,section.end);
+   if(end<=start)continue;
+   const int64_t section_start=frame_milliseconds(section.start,rate,scale);
+   const int64_t scene_start=frame_milliseconds(start,rate,scale),scene_end=frame_milliseconds(end,rate,scale);
+   const double source_start=section.source_start+section.speed*(scene_start-section_start);
+   const double source_end=section.source_start+section.speed*(scene_end-section_start);
+   std::vector<TimedBlock> mapped;
+   if(!midpoint_timing){
+    mapped=map_video_bound_srt_segment(parsed,scene_start,scene_end,section_start,int64_t(std::llround(section.source_start)),section.speed,playback.loop,source_duration);
+   }else if(playback.loop){
+    mapped=map_looped_srt_starts_to_scene(parsed,scene_start,frame_milliseconds(segment.end,rate,scale),source_start,source_end,source_duration,section.speed,first_output);
+   }else{
+    mapped=map_srt_starts_to_scene(parsed,scene_start,frame_milliseconds(segment.end,rate,scale),source_start,source_end,section.speed,first_output);
+   }
+   for(auto& block:mapped)sources.push_back({block.start,block.end,std::move(block.text),location.layer,order++});
+   first_output=false;
+  }
  }
 }
 static void append_fixed_srt(EDIT_SECTION* edit,OBJECT_HANDLE object,const OBJECT_LAYER_FRAME& location,const wchar_t* effect,const std::vector<SrtCaption>& parsed,int64_t source_duration,int rate,int scale,std::vector<SourceTimedCaption>& sources,size_t& order,ExportDiagnostics& diagnostics){

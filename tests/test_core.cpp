@@ -21,6 +21,20 @@ int main() {
   auto video_bound = map_video_bound_srt_segment({{5000, 7000, "途中", 0}}, 5000, 8000,
                                                   0, 0, 1.0, false, 0);
   assert(video_bound.size() == 1 && video_bound[0].start == 5000 && video_bound[0].end == 7000);
+  // Midpoint timing emits a source caption only in the interval where it
+  // begins.  A previous candidate may extend past the midpoint and is then
+  // stopped by the next candidate during timeline integration.
+  const std::vector<SrtCaption> midpoint_source = {
+      {0, 4000, "A", 0}, {4000, 7000, "B", 1}, {5500, 6500, "C", 2}};
+  auto midpoint_first = map_srt_starts_to_scene(midpoint_source, 0, 8000, 0, 5000, 1.0, true);
+  auto midpoint_second = map_srt_starts_to_scene(midpoint_source, 5000, 8000, 5000, 6500, 0.5, false);
+  assert(midpoint_first.size() == 2 && midpoint_first[1].start == 4000 && midpoint_first[1].end == 7000);
+  assert(midpoint_second.size() == 1 && midpoint_second[0].start == 6000 && midpoint_second[0].end == 8000);
+  auto midpoint_joined = integrate_timeline({
+      {midpoint_first[0].start, midpoint_first[0].end, midpoint_first[0].text, 0, 0},
+      {midpoint_first[1].start, midpoint_first[1].end, midpoint_first[1].text, 0, 1},
+      {midpoint_second[0].start, midpoint_second[0].end, midpoint_second[0].text, 0, 2}});
+  assert(midpoint_joined.size() == 3 && midpoint_joined[1].end == 6000 && midpoint_joined[2].text == "C");
   auto looped = map_looped_srt_to_scene({{1000, 2000, "A", 0}, {4000, 5000, "B", 1}},
                                         10000, 22000, 4000, 5000, 1.0);
   assert(looped.size() == 5 && looped[0].text == "B" && looped[4].end == 21000);

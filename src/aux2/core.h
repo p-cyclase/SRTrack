@@ -111,6 +111,64 @@ inline std::vector<TimedBlock> map_srt_to_scene(const std::vector<SrtCaption>& c
     return out;
 }
 
+// Creates candidates which begin in one source-time interval.  A candidate
+// already visible at the first interval's start may be included once so an
+// SRTrack Object placed mid-caption preserves the existing behavior.  Ends
+// are intentionally allowed to cross this interval: the timeline integrator
+// will stop them at the next candidate's start.
+inline std::vector<TimedBlock> map_srt_starts_to_scene(const std::vector<SrtCaption>& captions,
+                                                        int64_t scene_start, int64_t output_end,
+                                                        double source_start, double source_end,
+                                                        double speed, bool include_active) {
+    std::vector<TimedBlock> out;
+    if (output_end <= scene_start || source_end <= source_start || speed <= 0) return out;
+    for (const auto& caption : captions) {
+        const bool begins_here = caption.start >= source_start && caption.start < source_end;
+        const bool active_here = include_active && caption.start < source_start && caption.end > source_start;
+        if (!begins_here && !active_here) continue;
+        const double left = active_here ? source_start : static_cast<double>(caption.start);
+        int64_t start = scene_start + static_cast<int64_t>(std::llround((left - source_start) / speed));
+        int64_t end = scene_start + static_cast<int64_t>(std::llround((caption.end - source_start) / speed));
+        start = std::max(start, scene_start);
+        end = std::min(end, output_end);
+        if (end > start) out.push_back({start, end, caption.text});
+    }
+    return out;
+}
+
+inline std::vector<TimedBlock> map_looped_srt_starts_to_scene(const std::vector<SrtCaption>& captions,
+                                                               int64_t scene_start, int64_t output_end,
+                                                               double source_start, double source_end,
+                                                               int64_t source_duration, double speed,
+                                                               bool include_active) {
+    std::vector<TimedBlock> out;
+    if (output_end <= scene_start || source_end <= source_start || source_duration <= 0 || speed <= 0) return out;
+    for (const auto& caption : captions) {
+        const double caption_start = std::max<int64_t>(0, caption.start);
+        const double caption_end = std::min<int64_t>(source_duration, caption.end);
+        if (caption_end <= caption_start) continue;
+        const int64_t first_cycle = static_cast<int64_t>(std::floor((source_start - caption_end) / source_duration));
+        for (int64_t cycle = first_cycle; ; ++cycle) {
+            const double begin = caption_start + cycle * static_cast<double>(source_duration);
+            const double end_source = caption_end + cycle * static_cast<double>(source_duration);
+            if (begin >= source_end) break;
+            const bool begins_here = begin >= source_start && begin < source_end;
+            const bool active_here = include_active && begin < source_start && end_source > source_start;
+            if (!begins_here && !active_here) continue;
+            const double left = active_here ? source_start : begin;
+            int64_t start = scene_start + static_cast<int64_t>(std::llround((left - source_start) / speed));
+            int64_t end = scene_start + static_cast<int64_t>(std::llround((end_source - source_start) / speed));
+            start = std::max(start, scene_start);
+            end = std::min(end, output_end);
+            if (end > start) out.push_back({start, end, caption.text});
+        }
+    }
+    std::stable_sort(out.begin(), out.end(), [](const TimedBlock& left, const TimedBlock& right) {
+        return left.start < right.start;
+    });
+    return out;
+}
+
 // Map a looping source whose configured duration is the repeat period.
 // The source starts at source_start, advances at speed, then wraps to zero
 // whenever it reaches source_duration.  The current non-looping range end is
