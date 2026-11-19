@@ -1,5 +1,5 @@
 --label:SRTrack
---information:SRTrack Object 0.1.0 by p_cyclase
+--information:SRTrack Object 0.1.1 by p_cyclase
 --file@file:SRT ファイル
 --track@source_duration:全長,0,86400,0,0.001
 --check@preview:字幕プレビュー,true
