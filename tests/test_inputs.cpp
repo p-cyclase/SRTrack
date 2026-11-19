@@ -13,6 +13,11 @@ int main() {
   assert(window);
   HWND names_input=exporter_control(window,1012);
   assert(names_input && (GetWindowLongPtrW(names_input,GWL_STYLE)&ES_WANTRETURN));
+  assert(exporter_control(window,1026) && exporter_control(window,1027));
+  assert(!IsWindowEnabled(exporter_control(window,1027)));
+  SendMessageW(exporter_control(window,1026),BM_SETCHECK,BST_CHECKED,0);
+  dialog(window,WM_COMMAND,MAKEWPARAM(1026,BN_CLICKED),0);
+  assert(IsWindowEnabled(exporter_control(window,1027)));
   HWND next=GetDlgItem(window,1020);
   assert(next && !GetDlgItem(window,IDOK));
   assert(dialog(window,WM_COMMAND,MAKEWPARAM(IDOK,0),0)==TRUE && IsWindow(window));

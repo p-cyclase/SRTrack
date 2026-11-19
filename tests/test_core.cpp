@@ -96,6 +96,16 @@ int main() {
   auto final_short = merge_timed_blocks({{0, 50, "A"}}, 500);
   assert(final_short.size() == 1 && final_short[0].end == 500);
 
+  // Optional gap filling extends text only within a continuous source interval.
+  auto filled_gap = fill_short_gaps({{0, 100, "A", 1}, {250, 800, "B", 1}}, 200);
+  assert(filled_gap[0].end == 250 && filled_gap[0].text == "A");
+  auto exact_gap = fill_short_gaps({{0, 100, "A", 1}, {300, 800, "B", 1}}, 200);
+  assert(exact_gap[0].end == 100);
+  auto boundary_gap = fill_short_gaps({{0, 100, "A", 1}, {250, 800, "B", 2}}, 200);
+  assert(boundary_gap[0].end == 100);
+  auto disabled_gap = fill_short_gaps({{0, 100, "A", 1}, {250, 800, "B", 1}}, 0);
+  assert(disabled_gap[0].end == 100);
+
   auto clipped = clip_and_rebase_timeline({{1000, 1000, "Z"}, {1000, 4000, "A"}, {5000, 7000, "B"}},
                                            1000, 6000);
   assert(clipped.size() == 3 && clipped[0].start == 0 && clipped[0].end == 0);

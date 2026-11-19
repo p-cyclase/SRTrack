@@ -12,7 +12,13 @@
 
 struct Caption { int layer; int start; int end; std::string text; }; // end exclusive
 struct Block { int start; int end; std::string text; };
-struct TimedBlock { int64_t start, end; std::string text; };
+struct TimedBlock {
+    int64_t start, end;
+    std::string text;
+    // A nonzero value identifies a continuous source interval.  It prevents
+    // optional short-gap filling from crossing Object or video boundaries.
+    size_t continuity = 0;
+};
 struct SrtCaption { int64_t start, end; std::string text; size_t order; };
 enum class SimultaneousOrder { upper_layer_first, lower_layer_first };
 struct SourceTimedCaption {
@@ -22,6 +28,7 @@ struct SourceTimedCaption {
     // events are processed from Layer 1 downward; this is not winner-takes-all.
     int layer = 0;
     size_t order = 0;
+    size_t continuity = 0;
 };
 
 inline bool parse_srt_timestamp(const std::string& value, int64_t& result) {
@@ -246,12 +253,12 @@ inline std::vector<TimedBlock> integrate_timeline(
             const int64_t end = std::min(current.end, next.start);
             // Equal-start captions are intentionally retained as zero-length
             // blocks.  The short-caption pass decides how to combine them.
-            if (end >= current.start) out.push_back({current.start, end, current.text});
+            if (end >= current.start) out.push_back({current.start, end, current.text, current.continuity});
         }
         current = next;
         active = true;
     }
-    if (active && current.end > current.start) out.push_back({current.start, current.end, current.text});
+    if (active && current.end > current.start) out.push_back({current.start, current.end, current.text, current.continuity});
     return out;
 }
 
@@ -563,12 +570,12 @@ inline std::vector<TimedBlock> clip_and_rebase_timeline(
     for (const auto& block : blocks) {
         if (block.end == block.start) {
             if (block.start >= range_start && block.start < range_end)
-                out.push_back({block.start - range_start, block.end - range_start, block.text});
+                out.push_back({block.start - range_start, block.end - range_start, block.text, block.continuity});
             continue;
         }
         const int64_t start = std::max(block.start, range_start);
         const int64_t end = std::min(block.end, range_end);
-        if (end > start) out.push_back({start - range_start, end - range_start, block.text});
+        if (end > start) out.push_back({start - range_start, end - range_start, block.text, block.continuity});
     }
     return out;
 }
@@ -589,11 +596,27 @@ inline std::vector<TimedBlock> merge_timed_blocks(const std::vector<TimedBlock>&
             // The next caption starts before the current one can be extended.
             // Combine it and evaluate the resulting duration again.
             block.text += raw[i].text;
+            if (block.continuity != raw[i].continuity) block.continuity = 0;
             block.end = raw[i++].end;
         }
         if (block.end > block.start) out.push_back(std::move(block));
     }
     return out;
+}
+
+inline std::vector<TimedBlock> fill_short_gaps(std::vector<TimedBlock> blocks,
+                                               int64_t minimum_gap_ms) {
+    if (minimum_gap_ms <= 0) return blocks;
+    for (size_t i = 0; i + 1 < blocks.size(); ++i) {
+        TimedBlock& current = blocks[i];
+        const TimedBlock& next = blocks[i + 1];
+        const int64_t gap = next.start - current.end;
+        if (current.continuity != 0 && current.continuity == next.continuity &&
+            gap >= 0 && gap < minimum_gap_ms) {
+            current.end = next.start;
+        }
+    }
+    return blocks;
 }
 
 inline bool parse_offset(const std::wstring& input, int64_t& result) {
