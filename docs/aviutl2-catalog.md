@@ -26,4 +26,4 @@ SRTrackは試験段階の初期公開版です。製作者自身の動画投稿�
 不具合報告・改善案はGitHub Issuesで受け付けています。
 
 - [GitHubリポジトリ](https://github.com/p-cyclase/SRTrack)
-- [v0.1.0 ダウンロード](https://github.com/p-cyclase/SRTrack/releases/tag/v0.1.0)
+- [v0.1.1 ダウンロード](https://github.com/p-cyclase/SRTrack/releases/tag/v0.1.1)
