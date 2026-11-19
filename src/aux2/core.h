@@ -606,7 +606,6 @@ inline std::vector<TimedBlock> merge_timed_blocks(const std::vector<TimedBlock>&
 
 inline std::vector<TimedBlock> fill_short_gaps(std::vector<TimedBlock> blocks,
                                                int64_t minimum_gap_ms) {
-    if (minimum_gap_ms <= 0) return blocks;
     for (size_t i = 0; i + 1 < blocks.size(); ++i) {
         TimedBlock& current = blocks[i];
         const TimedBlock& next = blocks[i + 1];

@@ -20,7 +20,7 @@ static HINSTANCE module_handle;
 static EDIT_HANDLE* export_edit_handle;
 struct Settings {
  bool all=true, range_all=true, text=true, dialogue=true, srtrack=true;
- bool keep_ruby=true, keep_emoji=true, reflect_timing=true, upper_layer_first=true, fill_short_gaps=false;
+ bool keep_ruby=true, keep_emoji=true, reflect_timing=true, upper_layer_first=true;
  std::wstring numbers=L"", names=L"", offset=L"0.000", minimum_duration=L"1.000", minimum_gap=L"1.000";
 };
 static Settings settings;
@@ -45,8 +45,7 @@ static void load_settings() {
  settings.reflect_timing=read_string(k,L"reflect_timing",L"1")==L"1";
  settings.upper_layer_first=read_string(k,L"simultaneous_order",L"upper")==L"upper";
  settings.numbers=read_string(k,L"numbers",L"");settings.names=read_string(k,L"names",L"");
- settings.offset=read_string(k,L"offset",L"0.000");settings.minimum_duration=read_string(k,L"final_min",L"1.000");
- settings.fill_short_gaps=read_string(k,L"fill_short_gaps",L"0")==L"1";settings.minimum_gap=read_string(k,L"minimum_gap",L"1.000");
+ settings.offset=read_string(k,L"offset",L"0.000");settings.minimum_duration=read_string(k,L"final_min",L"1.000");settings.minimum_gap=read_string(k,L"gap_interpolation",L"1.000");
  RegCloseKey(k);
 }
 static bool save_settings() {
@@ -55,7 +54,7 @@ static bool save_settings() {
  auto put=[&](const wchar_t* n,const std::wstring& v){if(RegSetValueExW(k,n,0,REG_SZ,(const BYTE*)v.c_str(),DWORD((v.size()+1)*sizeof(wchar_t)))!=ERROR_SUCCESS)ok=false;};
  put(L"scope",settings.all?L"all":L"selected");put(L"range",settings.range_all?L"all":L"selected");put(L"text",settings.text?L"1":L"0");put(L"dialogue",settings.dialogue?L"1":L"0");put(L"srtrack",settings.srtrack?L"1":L"0");
  put(L"keep_ruby",settings.keep_ruby?L"1":L"0");put(L"keep_emoji",settings.keep_emoji?L"1":L"0");put(L"reflect_timing",settings.reflect_timing?L"1":L"0");put(L"simultaneous_order",settings.upper_layer_first?L"upper":L"lower");
- put(L"numbers",settings.numbers);put(L"names",settings.names);put(L"offset",settings.offset);put(L"final_min",settings.minimum_duration);put(L"fill_short_gaps",settings.fill_short_gaps?L"1":L"0");put(L"minimum_gap",settings.minimum_gap);
+ put(L"numbers",settings.numbers);put(L"names",settings.names);put(L"offset",settings.offset);put(L"final_min",settings.minimum_duration);put(L"gap_interpolation",settings.minimum_gap);
  RegCloseKey(k);return ok;
 }
 static bool parse_layers(const std::wstring& input,std::set<int>& layers) {
@@ -98,8 +97,38 @@ static void set_seconds_text(HWND h,int id,const std::wstring& value){
  int64_t milliseconds=0;SetWindowTextW(exporter_control(h,id),parse_offset(value,milliseconds)?format_seconds(milliseconds).c_str():value.c_str());
 }
 static void enable_scope(HWND h){BOOL enabled=is_checked(h,1011);EnableWindow(exporter_control(h,1001),enabled);EnableWindow(exporter_control(h,1012),enabled);}
-static void enable_gap_fill(HWND h){EnableWindow(exporter_control(h,1027),is_checked(h,1026));}
 static WNDPROC original_next_proc=nullptr;
+static WNDPROC original_seconds_proc=nullptr;
+static bool is_partial_seconds_input(const std::wstring& value){
+ size_t decimal=value.find(L'.');
+ if(decimal!=std::wstring::npos&&value.find(L'.',decimal+1)!=std::wstring::npos)return false;
+ const size_t whole=decimal==std::wstring::npos?value.size():decimal;
+ const size_t fractional=decimal==std::wstring::npos?0:value.size()-decimal-1;
+ if(whole>6||fractional>3)return false;
+ for(wchar_t c:value)if(c!=L'.'&&(c<L'0'||c>L'9'))return false;
+ return true;
+}
+static std::wstring seconds_edit_candidate(HWND edit,const std::wstring& inserted){
+ DWORD start=0,end=0;SendMessageW(edit,EM_GETSEL,reinterpret_cast<WPARAM>(&start),reinterpret_cast<LPARAM>(&end));
+ const int length=GetWindowTextLengthW(edit);std::vector<wchar_t> buffer(size_t(length)+1);GetWindowTextW(edit,buffer.data(),length+1);
+ const std::wstring value=buffer.data();
+ return value.substr(0,start)+inserted+value.substr(end);
+}
+static LRESULT CALLBACK seconds_edit_proc(HWND edit,UINT msg,WPARAM w,LPARAM l){
+ if(msg==WM_CHAR){
+  if(w<0x20)return CallWindowProcW(original_seconds_proc,edit,msg,w,l);
+  if((w>=L'0'&&w<=L'9')||w==L'.')return is_partial_seconds_input(seconds_edit_candidate(edit,std::wstring(1,wchar_t(w))))?CallWindowProcW(original_seconds_proc,edit,msg,w,l):0;
+  return 0;
+ }
+ if(msg==WM_PASTE){
+  if(!OpenClipboard(edit))return 0;
+  HANDLE handle=GetClipboardData(CF_UNICODETEXT);const wchar_t* raw=handle?static_cast<const wchar_t*>(GlobalLock(handle)):nullptr;
+  const bool valid=raw&&is_partial_seconds_input(seconds_edit_candidate(edit,raw));
+  if(raw)GlobalUnlock(handle);CloseClipboard();
+  return valid?CallWindowProcW(original_seconds_proc,edit,msg,w,l):0;
+ }
+ return CallWindowProcW(original_seconds_proc,edit,msg,w,l);
+}
 static LRESULT CALLBACK next_button_proc(HWND button,UINT msg,WPARAM w,LPARAM l){
  if(msg==WM_GETDLGCODE && l && reinterpret_cast<MSG*>(l)->message==WM_KEYDOWN && w==VK_RETURN)
   return CallWindowProcW(original_next_proc,button,msg,w,l)|DLGC_WANTMESSAGE;
@@ -140,19 +169,19 @@ static INT_PTR CALLBACK dialog(HWND h,UINT msg,WPARAM w,LPARAM lParam) {
  if(msg==WM_INITDIALOG){
   HWND tabs=GetDlgItem(h,exporter_tab_id);TCITEMW item{};item.mask=TCIF_TEXT;item.pszText=const_cast<LPWSTR>(L"出力対象");SendMessageW(tabs,TCM_FIRST+62,0,reinterpret_cast<LPARAM>(&item));item.pszText=const_cast<LPWSTR>(L"字幕の整形");SendMessageW(tabs,TCM_FIRST+62,1,reinterpret_cast<LPARAM>(&item));
   output_target_page=CreateDialogParamW(module_handle,MAKEINTRESOURCEW(103),h,exporter_page,0);subtitle_format_page=CreateDialogParamW(module_handle,MAKEINTRESOURCEW(104),h,exporter_page,0);RECT area{};GetClientRect(tabs,&area);TabCtrl_AdjustRect(tabs,FALSE,&area);MapWindowPoints(tabs,h,reinterpret_cast<POINT*>(&area),2);const int page_width=area.right-area.left,page_height=area.bottom-area.top;SetWindowPos(output_target_page,HWND_TOP,area.left,area.top,page_width,page_height,SWP_NOACTIVATE);SetWindowPos(subtitle_format_page,HWND_TOP,area.left,area.top,page_width,page_height,SWP_NOACTIVATE);TabCtrl_SetCurSel(tabs,0);show_exporter_tab(h,0);
-  set_checked(h,1010,settings.all);set_checked(h,1011,!settings.all);set_checked(h,1018,settings.range_all);set_checked(h,1019,!settings.range_all);set_checked(h,1013,settings.text);set_checked(h,1014,settings.dialogue);set_checked(h,1017,settings.srtrack);set_checked(h,1021,settings.keep_ruby);set_checked(h,1022,settings.keep_emoji);set_checked(h,1025,settings.reflect_timing);set_checked(h,1023,settings.upper_layer_first);set_checked(h,1024,!settings.upper_layer_first);set_checked(h,1026,settings.fill_short_gaps);
+  set_checked(h,1010,settings.all);set_checked(h,1011,!settings.all);set_checked(h,1018,settings.range_all);set_checked(h,1019,!settings.range_all);set_checked(h,1013,settings.text);set_checked(h,1014,settings.dialogue);set_checked(h,1017,settings.srtrack);set_checked(h,1021,settings.keep_ruby);set_checked(h,1022,settings.keep_emoji);set_checked(h,1025,settings.reflect_timing);set_checked(h,1023,settings.upper_layer_first);set_checked(h,1024,!settings.upper_layer_first);
   SetWindowTextW(exporter_control(h,1001),settings.numbers.c_str());SetWindowTextW(exporter_control(h,1012),settings.names.c_str());set_seconds_text(h,1002,settings.offset);set_seconds_text(h,1016,settings.minimum_duration);set_seconds_text(h,1027,settings.minimum_gap);
-  original_next_proc=reinterpret_cast<WNDPROC>(SetWindowLongPtrW(GetDlgItem(h,1020),GWLP_WNDPROC,reinterpret_cast<LONG_PTR>(next_button_proc)));enable_scope(h);enable_gap_fill(h);return TRUE;}
+  for(const int id:{1016,1027}){const auto previous=reinterpret_cast<WNDPROC>(SetWindowLongPtrW(exporter_control(h,id),GWLP_WNDPROC,reinterpret_cast<LONG_PTR>(seconds_edit_proc)));if(!original_seconds_proc)original_seconds_proc=previous;}
+  original_next_proc=reinterpret_cast<WNDPROC>(SetWindowLongPtrW(GetDlgItem(h,1020),GWLP_WNDPROC,reinterpret_cast<LONG_PTR>(next_button_proc)));enable_scope(h);return TRUE;}
  if(msg==WM_NOTIFY){const auto* notification=reinterpret_cast<const NMHDR*>(lParam);if(notification&&notification->idFrom==exporter_tab_id&&notification->code==TCN_SELCHANGE){show_exporter_tab(h,TabCtrl_GetCurSel(GetDlgItem(h,exporter_tab_id)));return TRUE;}}
  if(msg==WM_COMMAND&&(LOWORD(w)==1010||LOWORD(w)==1011)){enable_scope(h);return TRUE;}
- if(msg==WM_COMMAND&&LOWORD(w)==1026){enable_gap_fill(h);return TRUE;}
  if(msg==WM_COMMAND&&LOWORD(w)==IDOK)return TRUE;
  if(msg==WM_COMMAND&&LOWORD(w)==1020&&HIWORD(w)==BN_CLICKED){Settings next=settings;next.all=is_checked(h,1010);next.range_all=is_checked(h,1018);next.text=is_checked(h,1013);next.dialogue=is_checked(h,1014);
-  next.numbers=get_text(h,1001);next.names=get_text(h,1012);next.offset=get_text(h,1002);next.minimum_duration=get_text(h,1016);next.minimum_gap=get_text(h,1027);next.srtrack=is_checked(h,1017);next.keep_ruby=is_checked(h,1021);next.keep_emoji=is_checked(h,1022);next.reflect_timing=is_checked(h,1025);next.upper_layer_first=is_checked(h,1023);next.fill_short_gaps=is_checked(h,1026);
+  next.numbers=get_text(h,1001);next.names=get_text(h,1012);next.offset=get_text(h,1002);next.minimum_duration=get_text(h,1016);next.minimum_gap=get_text(h,1027);next.srtrack=is_checked(h,1017);next.keep_ruby=is_checked(h,1021);next.keep_emoji=is_checked(h,1022);next.reflect_timing=is_checked(h,1025);next.upper_layer_first=is_checked(h,1023);
   std::set<int> nums;int64_t off,minimum,gap;
   if(!next.text&&!next.dialogue&&!next.srtrack){MessageBoxW(h,L"対象オブジェクトを1つ以上選んでください。",L"入力エラー",MB_ICONWARNING);return TRUE;}
   if(!next.all&&(!parse_layers(next.numbers,nums)||(nums.empty()&&split_names(next.names).empty()))){MessageBoxW(h,L"レイヤー番号または名前を指定してください。番号の例: 3, 5, 8-10",L"入力エラー",MB_ICONWARNING);return TRUE;}
-  if(!parse_offset(next.offset,off)||!parse_offset(next.minimum_duration,minimum)||!parse_offset(next.minimum_gap,gap)||minimum<0||gap<0){MessageBoxW(h,L"秒数は小数点以下3桁までです。最小字幕時間と最小空白時間は0.000秒以上にしてください。",L"入力エラー",MB_ICONWARNING);return TRUE;}
+  if(!parse_offset(next.offset,off)||!parse_offset(next.minimum_duration,minimum)||!parse_offset(next.minimum_gap,gap)||minimum<0||gap<0){MessageBoxW(h,L"秒数は小数点以下3桁までです。最小字幕時間と空白補間時間は0.000秒以上にしてください。",L"入力エラー",MB_ICONWARNING);return TRUE;}
   next.offset=format_seconds(off);next.minimum_duration=format_seconds(minimum);next.minimum_gap=format_seconds(gap);
   settings=next;if(!save_settings())MessageBoxW(h,L"設定を保存できませんでした。今回の出力は続行できます。",L"設定保存",MB_ICONWARNING);EndDialog(h,IDOK);return TRUE;}
  if((msg==WM_COMMAND&&LOWORD(w)==IDCANCEL)||msg==WM_CLOSE){EndDialog(h,IDCANCEL);return TRUE;}return FALSE;
@@ -388,7 +417,7 @@ static void export_subtitles(EDIT_SECTION* edit){
   pos=loc.end+1;}}
  if(sources.empty()){add_diagnostic(DiagnosticSeverity::warning,L"Exporter",L"EXP-CAPTION-EMPTY",L"字幕を取得できませんでした。",L"出力を中止しました。");MessageBoxW(owner,L"字幕を取得できませんでした。対象レイヤーとオブジェクトを確認してください。",L"SRTrack Exporter",MB_ICONWARNING);return;}
  int64_t offset=0,minimum=1000,gap=1000;parse_offset(settings.offset,offset);parse_offset(settings.minimum_duration,minimum);parse_offset(settings.minimum_gap,gap);
- auto blocks=integrate_timeline(sources,settings.upper_layer_first ? SimultaneousOrder::upper_layer_first : SimultaneousOrder::lower_layer_first);if(!settings.range_all)blocks=clip_and_rebase_timeline(blocks,frame_milliseconds(edit->info->select_range_start,edit->info->rate,edit->info->scale),frame_milliseconds(edit->info->select_range_end+1,edit->info->rate,edit->info->scale));blocks=merge_timed_blocks(blocks,minimum);if(settings.fill_short_gaps)blocks=fill_short_gaps(std::move(blocks),gap);size_t omitted=0;auto shifted=shift_timeline(blocks,offset,&omitted);auto output=render_srt(shifted);
+ auto blocks=integrate_timeline(sources,settings.upper_layer_first ? SimultaneousOrder::upper_layer_first : SimultaneousOrder::lower_layer_first);if(!settings.range_all)blocks=clip_and_rebase_timeline(blocks,frame_milliseconds(edit->info->select_range_start,edit->info->rate,edit->info->scale),frame_milliseconds(edit->info->select_range_end+1,edit->info->rate,edit->info->scale));blocks=merge_timed_blocks(blocks,minimum);blocks=fill_short_gaps(std::move(blocks),gap);size_t omitted=0;auto shifted=shift_timeline(blocks,offset,&omitted);auto output=render_srt(shifted);
  if(output.empty()){add_diagnostic(DiagnosticSeverity::warning,L"Exporter",L"EXP-OFFSET-EMPTY",L"オフセット適用後の字幕がありません。",L"出力を中止しました。");MessageBoxW(owner,L"オフセットを適用すると全ての字幕が動画開始前になるため、出力できません。",L"SRTrack Exporter",MB_ICONWARNING);return;}
  wchar_t path[32768]=L"subtitles.srt";std::wstring suggested_path;if(suggested_srt_path(edit,suggested_path)&&suggested_path.size()<std::size(path))wcscpy_s(path,suggested_path.c_str());OPENFILENAMEW ofn{};ofn.lStructSize=sizeof(ofn);ofn.hwndOwner=owner;ofn.lpstrFilter=L"SRT 字幕 (*.srt)\0*.srt\0\0";ofn.lpstrFile=path;ofn.nMaxFile=32768;ofn.lpstrDefExt=L"srt";ofn.Flags=OFN_OVERWRITEPROMPT|OFN_PATHMUSTEXIST|OFN_NOCHANGEDIR;
  if(!GetSaveFileNameW(&ofn))return;if(!write_file(path,output)){add_diagnostic(DiagnosticSeverity::error,L"Exporter",L"EXP-FILE-WRITE",L"SRT ファイルを書き込めません。",L"出力を中止しました。");MessageBoxW(owner,L"ファイルの書き込みに失敗しました。",L"SRTrack Exporter",MB_ICONERROR);return;}

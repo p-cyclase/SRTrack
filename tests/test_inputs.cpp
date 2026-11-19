@@ -8,15 +8,14 @@ int main() {
   assert(parse_layers(L"3, 5, 8-10",layers) && layers.size()==5 && layers.count(2) && layers.count(9));
   layers.clear();assert(parse_layers(L" ",layers)&&layers.empty());
   assert(!parse_layers(L"3,",layers) && !parse_layers(L"5-3",layers));
+  assert(is_partial_seconds_input(L"") && is_partial_seconds_input(L"1.") && is_partial_seconds_input(L"999999.999"));
+  assert(!is_partial_seconds_input(L"-1") && !is_partial_seconds_input(L"1.0000") && !is_partial_seconds_input(L"1.2.3"));
   assert(offsetof(EDIT_SECTION,get_layer_name)==27*sizeof(void*));
   HWND window=CreateDialogParamW(GetModuleHandleW(nullptr),MAKEINTRESOURCEW(101),nullptr,dialog,0);
   assert(window);
   HWND names_input=exporter_control(window,1012);
   assert(names_input && (GetWindowLongPtrW(names_input,GWL_STYLE)&ES_WANTRETURN));
-  assert(exporter_control(window,1026) && exporter_control(window,1027));
-  assert(!IsWindowEnabled(exporter_control(window,1027)));
-  SendMessageW(exporter_control(window,1026),BM_SETCHECK,BST_CHECKED,0);
-  dialog(window,WM_COMMAND,MAKEWPARAM(1026,BN_CLICKED),0);
+  assert(!exporter_control(window,1026) && exporter_control(window,1027));
   assert(IsWindowEnabled(exporter_control(window,1027)));
   HWND next=GetDlgItem(window,1020);
   assert(next && !GetDlgItem(window,IDOK));
