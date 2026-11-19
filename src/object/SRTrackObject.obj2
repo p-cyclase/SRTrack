@@ -148,6 +148,23 @@ local function nearest_upper_video_state()
     return nil, "上側に動画 Object がありません"
 end
 
+local function midpoint_aware_source_time()
+    local ok, module = pcall(function() return obj.module("SRTrack") end)
+    local object_start = tonumber(obj.frame_s)
+    local current_frame = tonumber(obj.frame)
+    local frame_rate = tonumber(obj.framerate) or tonumber(obj.getpoint("framerate"))
+    if not ok or not module or not module.preview_source_time
+        or not obj.layer or not object_start or not current_frame or not frame_rate then
+        return nil
+    end
+    local read_ok, source_time = pcall(module.preview_source_time,
+        obj.layer, object_start + current_frame, frame_rate)
+    if not read_ok then
+        return nil
+    end
+    return tonumber(source_time)
+end
+
 if obj.getinfo("saving") or not preview or not global_preview_enabled() then
     clear_preview()
 elseif not file or file == "" then
@@ -182,8 +199,11 @@ else
         if #captions == 0 and bytes ~= "" then
             draw_read_failure("有効な SRT 字幕が見つかりません")
         else
-            local source_time = state.position * 1000
-                + (state.speed / 100) * (state.offset + obj.time) * 1000
+            local source_time = midpoint_aware_source_time()
+            if source_time == nil then
+                source_time = state.position * 1000
+                    + (state.speed / 100) * (state.offset + obj.time) * 1000
+            end
             local in_range = true
             if state.loop then
                 if not source_duration or source_duration <= 0 then
